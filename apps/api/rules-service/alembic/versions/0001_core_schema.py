@@ -58,9 +58,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["app_id"], ["applications.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "subject_type", "subject", "app_id", "permission", postgresql_nulls_not_distinct=True
-        ),
+        sa.UniqueConstraint("subject_type", "subject", "app_id", "permission", postgresql_nulls_not_distinct=True),
     )
     op.create_index(op.f("ix_role_grants_subject"), "role_grants", ["subject"], unique=False)
     op.create_table(
@@ -86,9 +84,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("decision_id", "version"),
     )
-    op.create_index(
-        op.f("ix_decision_versions_decision_id"), "decision_versions", ["decision_id"], unique=False
-    )
+    op.create_index(op.f("ix_decision_versions_decision_id"), "decision_versions", ["decision_id"], unique=False)
     op.create_table(
         "test_cases",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -133,9 +129,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("decision_id", "alias"),
     )
-    op.create_index(
-        op.f("ix_decision_aliases_decision_id"), "decision_aliases", ["decision_id"], unique=False
-    )
+    op.create_index(op.f("ix_decision_aliases_decision_id"), "decision_aliases", ["decision_id"], unique=False)
     op.create_table(
         "evaluation_stats",
         sa.Column("decision_id", sa.Integer(), nullable=False),
@@ -146,9 +140,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["version_id"], ["decision_versions.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("version_id", "day"),
     )
-    op.create_index(
-        op.f("ix_evaluation_stats_decision_id"), "evaluation_stats", ["decision_id"], unique=False
-    )
+    op.create_index(op.f("ix_evaluation_stats_decision_id"), "evaluation_stats", ["decision_id"], unique=False)
 
     # decision_versions.content and checksum are immutable: a new save is a new version row.
     op.execute(

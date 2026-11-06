@@ -156,3 +156,66 @@ If per-environment RBAC is needed, add an `environment` column to `decision_alia
 The ZEN loader resolves `decisionNode` keys `"{app}/{decision}@{versionId}"` (exact) or
 `"{app}/{decision}"` (the referenced decision's `default` alias), and never loads disabled
 versions.
+
+## Phase 1b — AI authoring
+
+### D-120 One JSON envelope for every provider
+Providers are asked for `{summary, explanation, jdm}`, with `jdm` as a **JSON-encoded string**.
+Decision-table rows have dynamic keys (the column ids), which strict structured-output JSON
+schemas cannot express. A fixed envelope works with Anthropic `output_config.format`
+(`json_schema`), OpenAI and Azure `response_format: json_schema` (strict), and, for
+OpenAI-compatible servers, a JSON-only instruction plus extraction. Set
+`options.structured_outputs=true` on a compatible provider that supports `json_schema`.
+Validation stage (a) parses both the envelope and the embedded JDM.
+
+### D-121 Anthropic SDK takes no sampling parameters — **Deviation**
+`anthropic` 2.6 (`Messages.create`) no longer accepts `temperature`/`top_p`. The
+`ai_providers.temperature` column applies to the OpenAI-family providers only. The
+Anthropic SDK authenticates with `Authorization: Bearer` and uses `httpx2`; the OpenAI SDK
+uses `httpx`. Tests inject a mock transport for each SDK, so the real SDK code paths run
+offline.
+
+### D-122 `generation_runs` additions — **Deviation (additive)**
+Beyond the prompt's columns, `generation_runs` has `kind` (`generate | explain |
+test_connection`), `app_id` and `provider_name`. Explain calls and connection tests then
+count toward usage reports and monthly token budgets, and runs stay attributable after a
+provider is renamed or deleted.
+
+### D-123 Global default provider
+Model names live only in configuration (`AI_DEFAULT_MODEL`, provider rows). Generation stays
+disabled for an app until an admin creates its `app_ai_settings`. `AI_DEFAULT_PROVIDER`
+picks the provider when an admin enables AI without naming one
+(`PUT /v1/apps/{app}/ai/settings {}` uses the enabled provider of that type). The seed's
+Anthropic row takes its model from `AI_DEFAULT_MODEL`.
+
+### D-124 Generation pipeline behaviour
+- **Retries:** timeouts, connection errors, 5xx, 408 and 429 are retried once, then the
+  app's fallback provider is tried. Other errors (such as 401) fail fast with a redacted
+  502.
+- **Validation:** (a) parse, (b) Pydantic JDM model, (c) ZEN load plus expression compile,
+  (d) every supplied example and every stored test case (subset match, D-105). Any failure
+  sends the specific errors back to the model, up to `AI_MAX_REPAIR_ATTEMPTS` repairs. The
+  final failure returns 422 with the report and the last (redacted) output.
+- **Guardrails:** per-user and per-app hourly rate limits, and monthly token budgets, are
+  computed from `generation_runs` in Postgres (serverless-safe). The budget is checked
+  before every provider call, including repairs. Prompt, context, example count and total
+  request size are capped (413).
+- **Time:** each call's timeout is the smallest of the provider's `timeout_s`,
+  `AI_CALL_TIMEOUT_CAP_S` and the remaining `AI_TOTAL_BUDGET_S` (240 s). The Vercel function
+  `maxDuration` is 300 s.
+- **Prompt injection:** `context_text` is wrapped in `<context_document>` delimiters; any
+  closing tag inside it is neutralised. The system prompt states that the document is data.
+- **No auto-activation:** generated versions are drafts with
+  `author = ai:<provider>/<model>` and `requested_by = <user>`, and go through the same
+  activation gate as hand-written versions.
+
+### D-125 Secrets
+`api_key_ref` accepts only references (`env:NAME`, `aws-sm:NAME`; more schemes via
+`register_scheme`). Values that look like keys are rejected. Every resolved secret is
+remembered in-process and replaced with `[redacted]` in errors, logs, run reports and
+audit entries, as are key-shaped strings (`sk-…`, bearer tokens). A canary-key test checks
+API responses, logs, every database table, audit and usage output.
+
+### D-126 Out of scope: file extraction
+`GenerateRequest` has a `TODO(file-extraction)`: PDF/DOCX uploads will be converted to text
+and fed into `context_text`.

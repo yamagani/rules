@@ -50,9 +50,7 @@ def _expand(perms: set[Permission]) -> set[Permission]:
 def effective_permissions(db: Session, principal: Principal) -> EffectivePermissions:
     conditions = [(RoleGrant.subject_type == SubjectType.user) & (RoleGrant.subject == principal.subject)]
     if principal.groups:
-        conditions.append(
-            (RoleGrant.subject_type == SubjectType.group) & (RoleGrant.subject.in_(principal.groups))
-        )
+        conditions.append((RoleGrant.subject_type == SubjectType.group) & (RoleGrant.subject.in_(principal.groups)))
     grants = db.scalars(select(RoleGrant).where(or_(*conditions))).all()
     global_: set[Permission] = set()
     per_app: dict[int, set[Permission]] = {}

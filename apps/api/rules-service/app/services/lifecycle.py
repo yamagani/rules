@@ -59,9 +59,7 @@ def alias_list(db: Session, decision: Decision) -> list[AliasOut]:
         .where(DecisionAlias.decision_id == decision.id)
         .order_by(DecisionAlias.alias)
     ).all()
-    return [
-        AliasOut(alias=a.alias, version=v, updated_by=a.updated_by, updated_at=a.updated_at) for a, v in rows
-    ]
+    return [AliasOut(alias=a.alias, version=v, updated_by=a.updated_by, updated_at=a.updated_at) for a, v in rows]
 
 
 def lock_decision(db: Session, decision: Decision) -> None:
@@ -82,9 +80,7 @@ def create_version(
 ) -> DecisionVersion:
     ensure_valid(content)
     lock_decision(db, decision)
-    current = db.scalar(
-        select(func.max(DecisionVersion.version)).where(DecisionVersion.decision_id == decision.id)
-    )
+    current = db.scalar(select(func.max(DecisionVersion.version)).where(DecisionVersion.decision_id == decision.id))
     version = DecisionVersion(
         decision_id=decision.id,
         version=(current or 0) + 1,
@@ -112,17 +108,14 @@ def create_version(
     return version
 
 
-def _gate(
-    db: Session, app: Application, version: DecisionVersion, principal: Principal, force: bool
-) -> TestReport:
+def _gate(db: Session, app: Application, version: DecisionVersion, principal: Principal, force: bool) -> TestReport:
     """The activation gate: stored tests must pass unless an admin forces it."""
     if force and not effective_permissions(db, principal).has(app.id, Permission.admin):
         raise Forbidden("force=true requires the 'admin' permission")
     tests = testing.run_stored_tests(db, version, app.key)
     if tests.failed and not force:
         raise Conflict(
-            f"{tests.failed} of {tests.total} test case(s) failed; "
-            f"version {version.version} was not activated",
+            f"{tests.failed} of {tests.total} test case(s) failed; version {version.version} was not activated",
             tests=tests.model_dump(mode="json"),
         )
     return tests
@@ -143,9 +136,7 @@ def _set_alias(
     if existing:
         if existing.version_id == target.id:
             return
-        old_version = db.scalar(
-            select(DecisionVersion.version).where(DecisionVersion.id == existing.version_id)
-        )
+        old_version = db.scalar(select(DecisionVersion.version).where(DecisionVersion.id == existing.version_id))
         existing.version_id = target.id
         existing.updated_by = actor
         existing.updated_at = now()
@@ -199,9 +190,7 @@ def activate(
         tests={"passed": tests.passed, "failed": tests.failed, "total": tests.total},
     )
     has_default = db.scalar(
-        select(DecisionAlias.id).where(
-            DecisionAlias.decision_id == decision.id, DecisionAlias.alias == DEFAULT_ALIAS
-        )
+        select(DecisionAlias.id).where(DecisionAlias.decision_id == decision.id, DecisionAlias.alias == DEFAULT_ALIAS)
     )
     targets = list(dict.fromkeys(aliases))
     if not has_default and DEFAULT_ALIAS not in targets:
@@ -254,9 +243,7 @@ def deprecate(
     sunset_at: datetime | None,
 ) -> None:
     if version.status not in SERVABLE:
-        raise Conflict(
-            f"Only active versions can be deprecated (version {version.version} is {version.status.value})"
-        )
+        raise Conflict(f"Only active versions can be deprecated (version {version.version} is {version.status.value})")
     old_status, old_sunset = version.status, version.sunset_at
     version.status = VersionStatus.deprecated
     version.sunset_at = sunset_at
@@ -280,8 +267,7 @@ def disable(db: Session, app: Application, decision: Decision, version: Decision
     lock_decision(db, decision)
     if version.status not in SERVABLE:
         raise Conflict(
-            f"Only active or deprecated versions can be disabled (version {version.version} is "
-            f"{version.status.value})"
+            f"Only active or deprecated versions can be disabled (version {version.version} is {version.status.value})"
         )
     pointing = aliases_by_version(db, decision).get(version.id, [])
     if pointing:
@@ -317,9 +303,7 @@ def delete_alias(db: Session, app: Application, decision: Decision, alias: str, 
     if alias == DEFAULT_ALIAS:
         raise Conflict("The 'default' alias cannot be deleted; move it to another version instead")
     lock_decision(db, decision)
-    row = db.scalar(
-        select(DecisionAlias).where(DecisionAlias.decision_id == decision.id, DecisionAlias.alias == alias)
-    )
+    row = db.scalar(select(DecisionAlias).where(DecisionAlias.decision_id == decision.id, DecisionAlias.alias == alias))
     if row is None:
         raise NotFound(f"Alias '{alias}' not found")
     old_version = db.scalar(select(DecisionVersion.version).where(DecisionVersion.id == row.version_id))
@@ -336,6 +320,4 @@ def alternatives(db: Session, decision: Decision) -> list[dict[str, Any]]:
         .where(DecisionVersion.decision_id == decision.id, DecisionVersion.status.in_(SERVABLE))
         .order_by(DecisionVersion.version.desc())
     )
-    return [
-        {"version": v.version, "status": v.status.value, "aliases": alias_map.get(v.id, [])} for v in rows
-    ]
+    return [{"version": v.version, "status": v.status.value, "aliases": alias_map.get(v.id, [])} for v in rows]

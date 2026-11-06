@@ -1,0 +1,34 @@
+{
+  "description": "Applicants must be adults with a credit score of at least 620; loans above 500,000 are not eligible. Output eligible and a reason.",
+  "jdm": {
+    "nodes": [
+      { "id": "request", "type": "inputNode", "name": "Request", "position": { "x": 40, "y": 100 } },
+      {
+        "id": "table", "type": "decisionTableNode", "name": "Eligibility", "position": { "x": 300, "y": 100 },
+        "content": {
+          "hitPolicy": "first",
+          "inputs": [
+            { "id": "age", "name": "Age", "field": "applicant.age" },
+            { "id": "score", "name": "Credit score", "field": "applicant.creditScore" },
+            { "id": "amount", "name": "Loan amount", "field": "loan.amount" }
+          ],
+          "outputs": [
+            { "id": "eligible", "name": "Eligible", "field": "eligible" },
+            { "id": "reason", "name": "Reason", "field": "reason" }
+          ],
+          "rules": [
+            { "_id": "r1", "age": "< 18", "score": "", "amount": "", "eligible": "false", "reason": "'Applicant must be 18 or older'" },
+            { "_id": "r2", "age": "", "score": "< 620", "amount": "", "eligible": "false", "reason": "'Credit score below 620'" },
+            { "_id": "r3", "age": "", "score": "", "amount": "> 500000", "eligible": "false", "reason": "'Amount above 500000'" },
+            { "_id": "r4", "age": "", "score": "", "amount": "", "eligible": "true", "reason": "'Eligible'" }
+          ]
+        }
+      },
+      { "id": "response", "type": "outputNode", "name": "Response", "position": { "x": 700, "y": 100 } }
+    ],
+    "edges": [
+      { "id": "e1", "sourceId": "request", "targetId": "table", "type": "edge" },
+      { "id": "e2", "sourceId": "table", "targetId": "response", "type": "edge" }
+    ]
+  }
+}

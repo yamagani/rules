@@ -138,9 +138,7 @@ def test_disabling_an_aliased_version_conflicts(bob, svc):
 def test_aliases_only_point_at_servable_versions(bob):
     assert bob.put("/decisions/eligibility/aliases/beta", json={"version": 5}).status_code == 409  # draft
     assert bob.put("/decisions/eligibility/aliases/beta", json={"version": 1}).status_code == 409  # disabled
-    assert (
-        bob.put("/decisions/eligibility/aliases/legacy", json={"version": 2}).status_code == 200
-    )  # deprecated
+    assert bob.put("/decisions/eligibility/aliases/legacy", json={"version": 2}).status_code == 200  # deprecated
     assert bob.delete("/decisions/eligibility/aliases/default").status_code == 409
     assert bob.delete("/decisions/eligibility/aliases/legacy").status_code == 200
 
@@ -195,9 +193,7 @@ def test_diff_between_versions(dave):
 
 
 def test_usage_counts_per_version(svc, bob):
-    before = {
-        v["version"]: v["total"] for v in bob.get("/decisions/eligibility/usage?days=7").json()["versions"]
-    }
+    before = {v["version"]: v["total"] for v in bob.get("/decisions/eligibility/usage?days=7").json()["versions"]}
     assert before[2] == 0  # deprecated: no remaining callers
     svc.evaluate("eligibility", ADULT, "?version=2")
     svc.evaluate("eligibility", ADULT, "?version=2")
@@ -214,9 +210,7 @@ def test_lifecycle_changes_are_audited(bob, alice):
     actions = [e["action"] for e in entries[:3]]
     assert actions == ["version.disabled", "alias.moved", "version.activated"]
     disabled = entries[0]
-    assert (
-        disabled["details"]["old_status"] == "deprecated" and disabled["details"]["new_status"] == "disabled"
-    )
+    assert disabled["details"]["old_status"] == "deprecated" and disabled["details"]["new_status"] == "disabled"
     moved = entries[1]["details"]
     assert (moved["alias"], moved["old_version"], moved["new_version"]) == ("beta", 4, 5)
 

@@ -9,7 +9,7 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.db import get_engine
 from app.errors import install_error_handlers
-from app.routers import admin, apps, decisions, dev_auth
+from app.routers import admin, ai, apps, decisions, dev_auth
 from app.spike.router import router as spike_router
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -36,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(apps.router)
     app.include_router(decisions.router)
     app.include_router(admin.router)
+    app.include_router(ai.router)
     if settings.dev_issuer_enabled:
         app.include_router(dev_auth.router)
     app.include_router(spike_router)

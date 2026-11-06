@@ -82,9 +82,7 @@ def verify_token(settings: Settings, token: str) -> Principal:
             raise AuthError(f"invalid token: {exc}") from exc
         if claims["sub"] not in DEMO_USERS:
             raise AuthError("unknown demo user")
-        return Principal(
-            claims["sub"], _as_tuple(claims.get("roles")), _as_tuple(claims.get("groups")), issuer
-        )
+        return Principal(claims["sub"], _as_tuple(claims.get("roles")), _as_tuple(claims.get("groups")), issuer)
 
     if settings.oidc_issuer and settings.oidc_jwks_url and issuer == settings.oidc_issuer:
         try:
