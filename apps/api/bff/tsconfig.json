@@ -1,0 +1,4 @@
+{
+  "extends": "@rules/config/tsconfig.node.json",
+  "include": ["src", "test", "vitest.config.ts"]
+}
