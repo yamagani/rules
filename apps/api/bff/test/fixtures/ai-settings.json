@@ -1,0 +1,1 @@
+{"enabled":true,"provider":{"id":1,"name":"mock","type":"mock","model":"mock-jdm-fixtures","base_url":null,"api_key_ref":null,"key_configured":true,"max_tokens":8000,"temperature":0.0,"timeout_s":30,"enabled":true,"monthly_token_budget":null,"tokens_this_month":0,"options":{},"created_by":"seed","updated_at":"2026-11-06T20:01:03.070705Z"},"fallback_provider":null}

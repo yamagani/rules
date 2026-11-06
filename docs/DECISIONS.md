@@ -262,3 +262,30 @@ without a build step. The generic packages (`ui-registry` generic components, `s
 `packages/api-client/openapi.json` and `src/schema.d.ts` are generated
 (`pnpm --filter @rules/api-client generate`) and committed, so JS jobs need no Python. CI
 fails if they drift from the service's OpenAPI document.
+
+## Phase 3 — BFF
+
+### D-301 Browser authentication through the BFF
+- The browser never holds a token in JavaScript. In local and demo environments,
+  `POST /bff/session/login` mints a token with the rules-service dev issuer and stores it in
+  an HttpOnly, `SameSite=Lax` cookie (`Secure` on Vercel).
+- Every BFF call forwards that token to rules-service as `Authorization: Bearer …`. A
+  request that already carries an `Authorization` header (an OIDC-enabled SPA) is forwarded
+  as is.
+- The BFF keeps no session or rule state. It calls `GET /v1/me` per screen to shape the spec.
+- Demo mode comes from rules-service's `/health` (`demo_auth`). The BFF never decides it on
+  its own.
+
+### D-302 Screen shaping rules
+- Lifecycle and alias controls appear only for `publish`. Per-row actions follow the version
+  status: activate (draft), deprecate (active), disable (active or deprecated **and not
+  aliased**), enable (disabled), point alias (active or deprecated).
+- Editors get a writable editor and the AI panel. Viewers get a read-only graph. Admin
+  screens return 403 to non-admins. Provider configuration is listed only to global admins.
+- rules-service enforces all of these again; the BFF only shapes what is shown.
+
+### D-303 BFF tests run against captured fixtures
+BFF tests use an in-process fake rules-service that answers from JSON captured from a
+freshly seeded instance (`apps/api/bff/test/capture-fixtures.sh`), so the JS CI job needs
+no database. End-to-end behaviour against the real service is covered by Playwright in
+Phase 5.

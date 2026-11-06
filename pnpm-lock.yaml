@@ -23,9 +23,24 @@ importers:
       '@hono/node-server':
         specifier: ^1.19.6
         version: 1.19.18(hono@4.13.16)
+      '@rules/api-client':
+        specifier: workspace:*
+        version: link:../../../packages/api-client
+      '@rules/auth':
+        specifier: workspace:*
+        version: link:../../../packages/auth
+      '@rules/schemas':
+        specifier: workspace:*
+        version: link:../../../packages/schemas
+      '@rules/ui-registry':
+        specifier: workspace:*
+        version: link:../../../packages/ui-registry
       hono:
         specifier: ^4.10.0
         version: 4.13.16
+      zod:
+        specifier: ^4.1.12
+        version: 4.6.7
     devDependencies:
       '@rules/config':
         specifier: workspace:*

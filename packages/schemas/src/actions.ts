@@ -46,7 +46,13 @@ export const rulesActions = {
 } as const;
 
 export const releasesActions = {
-  activate: z.object({ ...decision, version: IntLike, aliases: z.array(AliasName).optional(), force: z.boolean().optional() }),
+  activate: z.object({
+    ...decision,
+    version: IntLike,
+    // Form selects bind '' for "no alias"; drop empties before validating names.
+    aliases: z.preprocess((v) => (Array.isArray(v) ? v.filter((a) => a !== '' && a != null) : v), z.array(AliasName)).optional(),
+    force: z.boolean().optional(),
+  }),
   deprecate: z.object({ ...decision, version: IntLike, sunsetAt: z.string().datetime({ offset: true }).optional().or(z.literal('').transform(() => undefined)) }),
   disable: z.object({ ...decision, version: IntLike }),
   enable: z.object({ ...decision, version: IntLike, force: z.boolean().optional() }),
