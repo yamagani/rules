@@ -73,3 +73,86 @@ stopped: the other remotes and the shell keep working).
 docker-compose Postgres 16 is the default for local runs (`pnpm db:up`). To use a personal
 Neon branch instead, set `DATABASE_URL` (pooled) and `DATABASE_URL_UNPOOLED` (direct) in
 `.env`; see `infra/vercel/README.md` once Phase 6 lands.
+
+## Phase 1 — rules-service core
+
+### D-101 Content immutability is enforced by the database
+`decision_versions.content`, `checksum`, `version` and `decision_id` are protected by a
+`BEFORE UPDATE` trigger (migration `0001`) that raises `restrict_violation`. The API has no
+update path either: every save inserts a new draft row. Only `status`, `sunset_at`,
+`comment` and lifecycle timestamps can change.
+
+### D-102 Evaluate version selection order — **Deviation (ordering)**
+The prompt lists `?version`, `?alias`, the `default` alias, then `?draft=true`. Because every
+activated decision has a `default` alias, `draft=true` would never be reached in that order.
+Implemented order: `?version=n` → `?alias=name` → `?draft=true` → `default`. The response
+always reports the resolved version (`X-Rule-Version`, `meta.version`) and how it was chosen
+(`meta.resolved_by`).
+
+### D-103 Permission implications
+- `admin` implies all permissions; `edit` and `publish` each imply `view`.
+- `evaluate` is independent: the `svc-loan` service account can evaluate but not read rule
+  content, and `dave` (view) cannot evaluate.
+- Editors may evaluate any version, including drafts, so they can test in the TestPanel.
+  Drafts can be evaluated *only* by editors.
+- Grants with `app_id = NULL` are global. Global grants use
+  `UNIQUE NULLS NOT DISTINCT` (Postgres ≥ 15; Neon runs 16/17).
+- `force=true` on activate/enable needs `admin`, on top of `publish`.
+
+### D-104 Demo login guard — **Deviation (extra variable)**
+The dev token issuer is enabled when `ENV` is `local`/`test`, or when `DEMO_AUTH=true` on a
+non-production deployment. The prompt also wants a separate *demo* deployment whose Vercel
+target is Production, which conflicts with "refuse to start when `DEMO_AUTH=true` and
+`VERCEL_ENV=production`". The demo project therefore sets `RULES_DEPLOYMENT=demo`. The
+service refuses to start when `DEMO_AUTH=true`, `VERCEL_ENV=production` and
+`RULES_DEPLOYMENT` is not `demo`. Outside local runs, `DEMO_AUTH` also requires an explicit
+`DEV_JWT_SECRET`, and `ENV=production` requires OIDC settings. The issuer only mints tokens
+for the five seeded users. Demo tokens carry `iss=rules-dev-issuer` and are rejected
+whenever the issuer is disabled.
+
+### D-105 Test case semantics
+A test passes when every key in `expected` deep-equals the same key in the output (floats
+compared with a 1e-9 tolerance). Extra output keys are allowed. Test inputs may contain
+their own `caller` block (needed for role-aware rules such as `approval-limit`). Live
+evaluations always overwrite `caller` with `{roles, app}` from the verified token, so callers
+cannot spoof roles.
+
+### D-106 Lifecycle edge cases
+- `activate` accepts drafts only. Re-enabling a disabled version uses `enable`. Both run the
+  test gate; a failure returns `409` with the full test report.
+- `deprecate` accepts active or deprecated versions; on a deprecated version it updates the
+  sunset date.
+- The first activation of a decision creates its `default` alias automatically.
+- Alias names match `^[a-z][a-z0-9-]{0,63}$`.
+
+### D-107 Caches and serverless safety
+Parsed `ZenDecision` objects are cached per instance by version id (LRU, immutable content).
+Alias → version id is cached with a 5 s TTL and invalidated locally on alias changes. Other
+instances converge within the TTL. Version status is read from Postgres on every evaluate,
+so disabling takes effect immediately everywhere. Usage counting is a single
+`INSERT … ON CONFLICT DO UPDATE count = count + 1` per evaluate. SQLAlchemy uses `NullPool`
+with psycopg 3 and `prepare_threshold=None`, which is safe behind Neon's PgBouncer.
+
+### D-108 Expression linting uses ZEN's compiler, not its validator
+`ZenDecision.validate()` checks graph structure but not cell expressions, which otherwise
+only fail at evaluation time. zen-engine 2.1.3's `validate_unary_expression` also rejects
+valid shorthand that the engine evaluates correctly (`< 18`, `> 1, < 3`). Saves therefore
+compile every table cell, expression and switch condition with
+`compile_unary_expression` / `compile_expression`, and report failures per node, rule and
+column as `422`.
+
+### D-109 Multi-environment promotion (out of scope; design note)
+Environments (DEV/UAT/PROD) can be added without schema churn as **alias namespaces**:
+`dev:default`, `uat:default`, `prod:default`. Promotion then means moving the next
+environment's alias to an already-tested version, with the same audit trail and test gate.
+If per-environment RBAC is needed, add an `environment` column to `decision_aliases` and
+`role_grants` and include it in the unique keys.
+
+### D-110 Weighted traffic splitting (out of scope)
+`decision_aliases.weights` (nullable JSONB) is in the schema. The resolver has a
+`TODO(canary)` at the point where an alias with weights would choose a version.
+
+### D-111 decisionNode references
+The ZEN loader resolves `decisionNode` keys `"{app}/{decision}@{versionId}"` (exact) or
+`"{app}/{decision}"` (the referenced decision's `default` alias), and never loads disabled
+versions.
