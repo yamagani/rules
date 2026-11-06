@@ -9,7 +9,7 @@
     "preview": "vite preview --port 5173 --strictPort",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
-    "build:vercel": "vite build && node scripts/build-vercel.mjs"
+    "build:vercel": "node scripts/build-vercel.mjs"
   },
   "dependencies": {
     "@module-federation/runtime": "^2.9.3",
@@ -31,6 +31,9 @@
     "@vitejs/plugin-react": "^5.1.0",
     "eslint": "^9.39.1",
     "typescript": "^5.9.3",
-    "vite": "^8.0.0"
+    "vite": "^8.0.0",
+    "@rules/mfe-rules": "workspace:*",
+    "@rules/mfe-releases": "workspace:*",
+    "@rules/mfe-admin": "workspace:*"
   }
 }

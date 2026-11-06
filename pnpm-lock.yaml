@@ -258,6 +258,15 @@ importers:
       '@rules/config':
         specifier: workspace:*
         version: link:../../../packages/config
+      '@rules/mfe-admin':
+        specifier: workspace:*
+        version: link:../mfe-admin
+      '@rules/mfe-releases':
+        specifier: workspace:*
+        version: link:../mfe-releases
+      '@rules/mfe-rules':
+        specifier: workspace:*
+        version: link:../mfe-rules
       '@types/node':
         specifier: ^22.19.0
         version: 22.20.5
