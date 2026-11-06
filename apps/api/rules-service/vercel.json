@@ -1,9 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "python3 -m venv /tmp/rules-build && /tmp/rules-build/bin/pip install -q -r requirements.txt && /tmp/rules-build/bin/python scripts/vercel_build.py",
+  "outputDirectory": "public",
+  "ignoreCommand": "npx turbo-ignore@2",
   "functions": {
     "api/index.py": {
-      "maxDuration": 60,
-      "excludeFiles": "{tests/**,.venv/**,**/__pycache__/**}"
+      "maxDuration": 300,
+      "excludeFiles": "{tests/**,.venv/**,**/__pycache__/**,.pytest_cache/**,.mypy_cache/**,.ruff_cache/**,public/**}"
     }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]

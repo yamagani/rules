@@ -9,6 +9,4 @@ def test_openapi_is_exported(client):
 
 
 def test_spike_endpoint(client):
-    assert client.post("/spike/evaluate", json={"applicant": {"age": 12}}).json()["result"] == {
-        "eligible": False
-    }
+    assert client.post("/spike/evaluate", json={"applicant": {"age": 12}}).json()["result"] == {"eligible": False}

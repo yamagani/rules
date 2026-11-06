@@ -1,4 +1,5 @@
 import { loadRemote, registerRemotes } from '@module-federation/runtime';
+import type { RemoteAppProps } from '@rules/sdui-runtime';
 import type { ComponentType } from 'react';
 
 export interface RemoteDescriptor {
@@ -8,10 +9,6 @@ export interface RemoteDescriptor {
   basePath: string;
   label: string;
   permission: 'view' | 'admin';
-}
-
-export interface RemoteAppProps {
-  basePath: string;
 }
 
 let manifestPromise: Promise<RemoteDescriptor[]> | undefined;
@@ -30,9 +27,19 @@ export function loadManifest(): Promise<RemoteDescriptor[]> {
   return manifestPromise;
 }
 
-export async function loadRemoteApp(remote: RemoteDescriptor): Promise<{ default: ComponentType<RemoteAppProps> }> {
+const cache = new Map<string, Promise<ComponentType<RemoteAppProps>>>();
+
+export function loadRemoteApp(remote: RemoteDescriptor): Promise<ComponentType<RemoteAppProps>> {
   const id = `${remote.name}/${remote.module.replace(/^\.\//, '')}`;
-  const mod = await loadRemote<{ default: ComponentType<RemoteAppProps> }>(id);
-  if (!mod?.default) throw new Error(`Remote ${id} did not export a default component`);
-  return mod;
+  let pending = cache.get(id);
+  if (!pending) {
+    pending = loadRemote<{ default: ComponentType<RemoteAppProps> }>(id).then((mod) => {
+      if (!mod?.default) throw new Error(`Remote ${id} did not export a default component`);
+      return mod.default;
+    });
+    // Do not cache failures: a retry after the remote comes back should work.
+    pending.catch(() => cache.delete(id));
+    cache.set(id, pending);
+  }
+  return pending;
 }

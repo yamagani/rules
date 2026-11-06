@@ -21,8 +21,6 @@ DEMO_USERS: dict[str, DemoUser] = {
         DemoUser("bob", "Bob Publisher", "Edit + publish on loan-origination", roles=("manager",)),
         DemoUser("carol", "Carol Author", "Edit on loan-origination (cannot publish)", roles=("agent",)),
         DemoUser("dave", "Dave Viewer", "View only", roles=()),
-        DemoUser(
-            "svc-loan", "Loan service", "Service account: evaluate only", roles=("agent",), kind="service"
-        ),
+        DemoUser("svc-loan", "Loan service", "Service account: evaluate only", roles=("agent",), kind="service"),
     ]
 }

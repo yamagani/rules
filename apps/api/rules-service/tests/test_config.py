@@ -40,3 +40,13 @@ def test_dev_tokens_rejected_when_issuer_disabled():
     token = mint_dev_token(make(ENV="local"), "alice")
     with pytest.raises(AuthError):
         verify_token(make(ENV="preview", OIDC_ISSUER="https://idp", OIDC_JWKS_URL="https://idp/jwks"), token)
+
+
+def test_env_follows_vercel_env_when_unset(monkeypatch):
+    monkeypatch.delenv("ENV", raising=False)
+    assert make(VERCEL_ENV="production").env == "production"
+    assert not make(VERCEL_ENV="production").dev_issuer_enabled
+    assert make(VERCEL_ENV="preview").env == "preview"
+    assert make(VERCEL_ENV="preview", ENV="demo").env == "demo"  # explicit ENV wins
+    with pytest.raises(RuntimeError, match="OIDC"):
+        make(VERCEL_ENV="production").check_startup()

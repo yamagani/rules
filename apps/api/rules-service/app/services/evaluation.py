@@ -160,6 +160,4 @@ def evaluate(
         sunset_at=row.sunset_at,
         performance=out.get("performance"),
     )
-    return EvaluateResponse(
-        result=out["result"], meta=meta, trace=out.get("trace") if trace else None
-    ), headers
+    return EvaluateResponse(result=out["result"], meta=meta, trace=out.get("trace") if trace else None), headers

@@ -5,9 +5,7 @@ from typing import Any
 Cell = str
 
 
-def _node(
-    node_id: str, kind: str, name: str, x: int, y: int, content: dict[str, Any] | None = None
-) -> dict[str, Any]:
+def _node(node_id: str, kind: str, name: str, x: int, y: int, content: dict[str, Any] | None = None) -> dict[str, Any]:
     node: dict[str, Any] = {"id": node_id, "type": kind, "name": name, "position": {"x": x, "y": y}}
     if content is not None:
         node["content"] = content

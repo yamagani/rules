@@ -70,9 +70,7 @@ def create_decision(app: str, body: DecisionCreate, db: DB, principal: CurrentPr
     decision = Decision(app_id=application.id, key=body.key, name=body.name, description=body.description)
     db.add(decision)
     db.flush()
-    audit.record(
-        db, principal.subject, "decision.created", application, decision, key=body.key, name=body.name
-    )
+    audit.record(db, principal.subject, "decision.created", application, decision, key=body.key, name=body.name)
     db.commit()
     return _summary(db, decision)
 
@@ -118,9 +116,7 @@ def get_version(app: str, key: str, version: int, db: DB, principal: CurrentPrin
 
 
 @router.post("/{key}/versions", response_model=VersionSummary, status_code=status.HTTP_201_CREATED)
-def create_version(
-    app: str, key: str, body: VersionCreate, db: DB, principal: CurrentPrincipal
-) -> VersionSummary:
+def create_version(app: str, key: str, body: VersionCreate, db: DB, principal: CurrentPrincipal) -> VersionSummary:
     application = load_app(db, app)
     rbac.require(db, principal, application, Permission.edit)
     decision = load_decision(db, application, key)
@@ -155,9 +151,7 @@ def diff_versions(
     )
 
 
-def _lifecycle_result(
-    db: DB, decision: Decision, row: DecisionVersion, tests: TestReport | None
-) -> LifecycleResult:
+def _lifecycle_result(db: DB, decision: Decision, row: DecisionVersion, tests: TestReport | None) -> LifecycleResult:
     db.refresh(row)
     return LifecycleResult(
         version=lifecycle.summary(row, lifecycle.aliases_by_version(db, decision)),
@@ -199,9 +193,7 @@ def deprecate(
     rbac.require(db, principal, application, Permission.publish)
     decision = load_decision(db, application, key)
     row = load_version(db, decision, version, for_update=True)
-    lifecycle.deprecate(
-        db, application, decision, row, principal.subject, (body or DeprecateRequest()).sunset_at
-    )
+    lifecycle.deprecate(db, application, decision, row, principal.subject, (body or DeprecateRequest()).sunset_at)
     db.commit()
     return _lifecycle_result(db, decision, row, None)
 
@@ -245,9 +237,7 @@ def run_tests(app: str, key: str, version: int, db: DB, principal: CurrentPrinci
 
 # --- aliases -----------------------------------------------------------------------
 @router.put("/{key}/aliases/{alias}", response_model=list[AliasOut])
-def put_alias(
-    app: str, key: str, alias: str, body: AliasPut, db: DB, principal: CurrentPrincipal
-) -> list[AliasOut]:
+def put_alias(app: str, key: str, alias: str, body: AliasPut, db: DB, principal: CurrentPrincipal) -> list[AliasOut]:
     import re
 
     from app.errors import BadRequest

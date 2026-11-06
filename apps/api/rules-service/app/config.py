@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOCAL_DEV_JWT_SECRET = "local-dev-only-not-a-secret-0123456789"  # noqa: S105 - only accepted when ENV=local
@@ -31,9 +31,28 @@ class Settings(BaseSettings):
     decision_cache_size: int = Field(256, alias="DECISION_CACHE_SIZE")
 
     # AI authoring
+    # Model names are configuration only (never hardcoded); see .env.example.
     ai_default_provider: str = Field("mock", alias="AI_DEFAULT_PROVIDER")
-    ai_default_model: str = Field("mock-jdm", alias="AI_DEFAULT_MODEL")
-    ai_max_repair_attempts: int = Field(2, alias="AI_MAX_REPAIR_ATTEMPTS")
+    ai_default_model: str | None = Field(None, alias="AI_DEFAULT_MODEL")
+    ai_max_repair_attempts: int = Field(2, alias="AI_MAX_REPAIR_ATTEMPTS", ge=0, le=5)
+    ai_rate_limit_user_per_hour: int = Field(20, alias="AI_RATE_LIMIT_USER_PER_HOUR")
+    ai_rate_limit_app_per_hour: int = Field(200, alias="AI_RATE_LIMIT_APP_PER_HOUR")
+    ai_max_prompt_chars: int = Field(4_000, alias="AI_MAX_PROMPT_CHARS")
+    ai_max_context_chars: int = Field(20_000, alias="AI_MAX_CONTEXT_CHARS")
+    ai_max_examples: int = Field(20, alias="AI_MAX_EXAMPLES")
+    ai_max_request_bytes: int = Field(64_000, alias="AI_MAX_REQUEST_BYTES")
+    # The generate route must finish inside the function's maxDuration (vercel.json: 300 s).
+    ai_call_timeout_cap_s: float = Field(90, alias="AI_CALL_TIMEOUT_CAP_S")
+    ai_total_budget_s: float = Field(240, alias="AI_TOTAL_BUDGET_S")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _env_from_vercel(cls, data: dict[str, object]) -> dict[str, object]:
+        """On Vercel, an unset ENV follows VERCEL_ENV. Without this, a forgotten ENV would
+        default to "local" and enable the dev token issuer on a public deployment."""
+        if isinstance(data, dict) and not data.get("ENV") and data.get("VERCEL_ENV"):
+            data["ENV"] = {"production": "production", "preview": "preview"}.get(str(data["VERCEL_ENV"]), "preview")
+        return data
 
     @property
     def is_vercel_production(self) -> bool:

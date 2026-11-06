@@ -48,30 +48,22 @@ def run_cases(
         try:
             actual = evaluate_fn(with_default_caller(input_, app_key))["result"]
         except Exception as exc:
-            results.append(
-                TestResult(name=name, passed=False, expected=expected, error=clean_engine_error(str(exc)))
-            )
+            results.append(TestResult(name=name, passed=False, expected=expected, error=clean_engine_error(str(exc))))
             continue
         mismatches = subset_mismatches(expected, actual)
         results.append(
-            TestResult(
-                name=name, passed=not mismatches, expected=expected, actual=actual, mismatches=mismatches
-            )
+            TestResult(name=name, passed=not mismatches, expected=expected, actual=actual, mismatches=mismatches)
         )
     return results
 
 
 def report(results: list[TestResult], version: int | None = None) -> TestReport:
     passed = sum(r.passed for r in results)
-    return TestReport(
-        version=version, total=len(results), passed=passed, failed=len(results) - passed, results=results
-    )
+    return TestReport(version=version, total=len(results), passed=passed, failed=len(results) - passed, results=results)
 
 
 def run_stored_tests(db: Session, version: DecisionVersion, app_key: str) -> TestReport:
-    cases = db.scalars(
-        select(TestCase).where(TestCase.decision_id == version.decision_id).order_by(TestCase.id)
-    )
+    cases = db.scalars(select(TestCase).where(TestCase.decision_id == version.decision_id).order_by(TestCase.id))
     triples = [(c.name, c.input, c.expected) for c in cases]
     results = run_cases(lambda ctx: engine.evaluate(db, version, ctx, False), triples, app_key)
     return report(results, version.version)

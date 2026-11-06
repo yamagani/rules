@@ -15,9 +15,7 @@ router = APIRouter(prefix="/v1/apps/{app}", tags=["admin"])
 
 
 def _grant_out(g: RoleGrant, app_key: str | None) -> GrantOut:
-    return GrantOut(
-        id=g.id, subject_type=g.subject_type, subject=g.subject, app=app_key, permission=g.permission
-    )
+    return GrantOut(id=g.id, subject_type=g.subject_type, subject=g.subject, app=app_key, permission=g.permission)
 
 
 @router.get("/grants", response_model=list[GrantOut])

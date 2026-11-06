@@ -1,0 +1,58 @@
+# Vercel deploys this monorepo through its GitHub integration (3 projects: rules-web,
+# rules-bff, rules-api). Each project's build runs only when its code or its workspace
+# dependencies changed (turbo-ignore). rules-api migrates its Neon database during its own
+# build, so this workflow only *verifies* deployments that Vercel reports to GitHub:
+#
+#   preview of rules-web ready    → Playwright smoke suite against the preview URL
+#   production of rules-api ready → production rejects demo login and requires auth
+name: Verify deployment
+
+on: deployment_status
+
+jobs:
+  preview-e2e:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment != 'Production' &&
+      contains(github.event.deployment_status.target_url, 'rules-web')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ github.event.deployment.sha }}' }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @rules/e2e exec playwright install --with-deps chromium
+      # The read-only suite: the full demo path mutates data and runs against docker compose
+      # in CI (ci.yml), where the database can be reset before each run.
+      - name: Playwright smoke against the preview
+        env:
+          E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          E2E_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: pnpm --filter @rules/e2e exec playwright test tests/mfe.spec.ts --trace off
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: preview-playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
+
+  production-guard:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production' &&
+      contains(github.event.deployment_status.target_url, 'rules-api') &&
+      vars.PRODUCTION_IS_DEMO != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Production rejects demo login and requires authentication
+        run: |
+          rs="${{ vars.PROD_API_URL || github.event.deployment_status.target_url }}"
+          curl -fsS "$rs/health" | tee /dev/stderr | grep -q '"demo_auth":"false"' \
+            || { echo "::error::demo login is enabled on production (allowed only with RULES_DEPLOYMENT=demo)"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$rs/v1/dev/token" -H 'content-type: application/json' -d '{"username":"alice"}')
+          [ "$code" = "404" ] || { echo "::error::dev token issuer answered $code on production"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$rs/v1/apps")
+          [ "$code" = "401" ] || { echo "::error::unauthenticated request answered $code"; exit 1; }

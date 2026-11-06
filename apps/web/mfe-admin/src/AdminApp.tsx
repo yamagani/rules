@@ -1,13 +1,16 @@
-export interface AdminAppProps {
-  /** Base path the shell mounts this remote under (e.g. "/admin"). */
-  basePath: string;
+import { query, RemoteFrame, type RemoteAppProps, type ScreenRoute } from '@rules/sdui-runtime';
+import { useMemo } from 'react';
+
+/** /admin?tab=grants|audit|ai|usage → access, audit log, AI providers, AI usage. */
+export function route(props: Pick<RemoteAppProps, 'location'>): ScreenRoute {
+  return { screen: 'overview', params: { tab: query(props.location).tab } };
 }
 
-export default function AdminApp({ basePath }: AdminAppProps) {
+export default function AdminApp(props: RemoteAppProps) {
+  const r = useMemo(() => route(props), [props]);
   return (
-    <section data-testid="mfe-admin-root">
-      <h2>Admin</h2>
-      <p>Mounted at {basePath}. Screens arrive in Phase 4.</p>
-    </section>
+    <div data-testid="mfe-admin-root">
+      <RemoteFrame mfe="admin" route={r} props={props} />
+    </div>
   );
 }

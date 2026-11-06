@@ -42,12 +42,8 @@ def load_decision(db: Session, app: Application, key: str) -> Decision:
     return decision
 
 
-def load_version(
-    db: Session, decision: Decision, version: int, *, for_update: bool = False
-) -> DecisionVersion:
-    stmt = select(DecisionVersion).where(
-        DecisionVersion.decision_id == decision.id, DecisionVersion.version == version
-    )
+def load_version(db: Session, decision: Decision, version: int, *, for_update: bool = False) -> DecisionVersion:
+    stmt = select(DecisionVersion).where(DecisionVersion.decision_id == decision.id, DecisionVersion.version == version)
     if for_update:
         stmt = stmt.with_for_update()
     row = db.scalar(stmt)

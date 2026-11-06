@@ -1,0 +1,79 @@
+{
+  "keywords": [],
+  "summary": "Return true when input.value is positive",
+  "explanation": "A single decision table: when input.value is greater than zero the result is true, otherwise false.",
+  "jdm": {
+    "nodes": [
+      {
+        "id": "request",
+        "type": "inputNode",
+        "name": "Request",
+        "position": {
+          "x": 40,
+          "y": 100
+        }
+      },
+      {
+        "id": "table",
+        "type": "decisionTableNode",
+        "name": "Generated rule",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "content": {
+          "hitPolicy": "first",
+          "inputs": [
+            {
+              "id": "value",
+              "name": "Value",
+              "field": "input.value"
+            }
+          ],
+          "outputs": [
+            {
+              "id": "result",
+              "name": "Result",
+              "field": "result"
+            }
+          ],
+          "rules": [
+            {
+              "_id": "rule-1",
+              "value": "> 0",
+              "result": "true"
+            },
+            {
+              "_id": "rule-2",
+              "value": "",
+              "result": "false"
+            }
+          ]
+        }
+      },
+      {
+        "id": "response",
+        "type": "outputNode",
+        "name": "Response",
+        "position": {
+          "x": 700,
+          "y": 100
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-request-table",
+        "sourceId": "request",
+        "targetId": "table",
+        "type": "edge"
+      },
+      {
+        "id": "e-table-response",
+        "sourceId": "table",
+        "targetId": "response",
+        "type": "edge"
+      }
+    ]
+  }
+}

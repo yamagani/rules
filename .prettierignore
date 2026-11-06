@@ -1,3 +1,4 @@
 pnpm-lock.yaml
 packages/api-client/src/schema.d.ts
 apps/api/rules-service
+packages/api-client/openapi.json
