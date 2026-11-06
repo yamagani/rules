@@ -1,0 +1,5 @@
+{
+  "extends": "@rules/config/tsconfig.react.json",
+  "compilerOptions": { "types": [] },
+  "include": ["src", "test", "vitest.config.ts"]
+}

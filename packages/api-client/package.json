@@ -1,0 +1,27 @@
+{
+  "name": "@rules/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "generate": "pnpm --filter @rules/rules-service openapi ../../../packages/api-client/openapi.json && openapi-typescript openapi.json -o src/schema.d.ts && prettier --write src/schema.d.ts",
+    "check:generated": "pnpm generate && git diff --exit-code -- openapi.json src/schema.d.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "@rules/config": "workspace:*",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.10",
+    "openapi-typescript": "^7.13.0"
+  }
+}

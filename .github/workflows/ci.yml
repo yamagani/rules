@@ -49,6 +49,10 @@ jobs:
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run mypy app
       - run: uv run pytest -q
+      - name: packages/api-client is generated from the current OpenAPI document
+        run: |
+          uv run python -m app.openapi /tmp/openapi.json
+          diff /tmp/openapi.json ../../../packages/api-client/openapi.json
       - name: requirements.txt matches uv.lock (used by the Vercel Python runtime)
         run: |
           uv export --no-dev --no-hashes --format requirements-txt -q -o /tmp/req.txt
