@@ -323,3 +323,24 @@ compares graphs with a key-sorted serialization.
 The GoRules editor (antd, Monaco, React Flow) is a lazy chunk. Because `ui-registry` is a
 shared singleton, each app build contains the chunk, but browsers download it only when an
 editor renders.
+
+## Phase 5 — end-to-end tests and docs
+
+### D-501 End-to-end suite
+`e2e/` (Playwright 1.63) runs against any running stack (`E2E_BASE_URL`,
+`E2E_RULES_SERVICE_URL`). `demo.spec.ts` follows `docs/DEMO.md` step by step: it edits a
+real table cell in the GoRules editor, uses the TestPanel, diffs, activates with an alias,
+calls the API as `svc-loan`, disables, rolls back, generates with the mock provider and
+audits. It starts by checking for freshly seeded data and fails with a clear message
+otherwise. `mfe.spec.ts` covers remote loading, permission-filtered nav, isolation of a
+failing remote, invalid-spec error states and standalone remotes. CI runs both against
+docker compose (`pnpm e2e:compose`).
+
+### D-502 Toasts survive navigation
+Actions such as "Save as new draft" navigate to the new version, which remounts the
+screen. Toasts live in a module-level store in `@rules/sdui-runtime`, so the confirmation
+is not lost.
+
+### D-503 Demo step 6 wording
+The demo checks v2's usage *after* step 5 has called it once, so the usage table shows one
+call (the demo's own) rather than zero. `DEMO.md` says so explicitly.
