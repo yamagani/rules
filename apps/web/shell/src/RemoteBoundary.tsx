@@ -2,6 +2,7 @@ import { Component, type ReactNode } from 'react';
 
 interface Props {
   name: string;
+  onRetry?: () => void;
   children: ReactNode;
 }
 interface State {
@@ -23,10 +24,19 @@ export class RemoteBoundary extends Component<Props, State> {
   override render() {
     if (this.state.error) {
       return (
-        <div role="alert" data-testid="remote-error" style={{ padding: 16, border: '1px solid #e5a3a3', borderRadius: 8, background: '#fdf2f2' }}>
+        <div role="alert" data-testid="remote-error" className="rr-error">
           <strong>{this.props.name} is unavailable.</strong>
-          <p style={{ margin: '4px 0 0' }}>The rest of the app keeps working. Details: {this.state.error.message}</p>
-          <button type="button" onClick={() => this.setState({ error: null })}>Retry</button>
+          <p style={{ margin: '4px 0 8px' }}>The rest of the app keeps working. Details: {this.state.error.message}</p>
+          <button
+            type="button"
+            className="rr-btn"
+            onClick={() => {
+              this.setState({ error: null });
+              this.props.onRetry?.();
+            }}
+          >
+            Retry
+          </button>
         </div>
       );
     }

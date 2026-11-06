@@ -13,7 +13,13 @@
   "dependencies": {
     "@module-federation/runtime": "^2.9.3",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "@json-render/core": "0.22.0",
+    "@json-render/react": "0.22.0",
+    "@rules/auth": "workspace:*",
+    "@rules/schemas": "workspace:*",
+    "@rules/sdui-runtime": "workspace:*",
+    "@rules/ui-registry": "workspace:*"
   },
   "devDependencies": {
     "@module-federation/vite": "^1.23.10",
