@@ -1,13 +1,18 @@
-export interface ReleasesAppProps {
-  /** Base path the shell mounts this remote under (e.g. "/releases"). */
-  basePath: string;
+import { query, RemoteFrame, subpath, type RemoteAppProps, type ScreenRoute } from '@rules/sdui-runtime';
+import { useMemo } from 'react';
+
+/** /releases → decisions; /releases/<decision>?from=&to= → versions, aliases, usage, diff. */
+export function route(props: Pick<RemoteAppProps, 'basePath' | 'location'>): ScreenRoute {
+  const [decision] = subpath(props.basePath, props.location);
+  const q = query(props.location);
+  return decision ? { screen: 'versions', params: { decision, from: q.from, to: q.to } } : { screen: 'list', params: {} };
 }
 
-export default function ReleasesApp({ basePath }: ReleasesAppProps) {
+export default function ReleasesApp(props: RemoteAppProps) {
+  const r = useMemo(() => route(props), [props]);
   return (
-    <section data-testid="mfe-releases-root">
-      <h2>Releases</h2>
-      <p>Mounted at {basePath}. Screens arrive in Phase 4.</p>
-    </section>
+    <div data-testid="mfe-releases-root">
+      <RemoteFrame mfe="releases" route={r} props={props} />
+    </div>
   );
 }
