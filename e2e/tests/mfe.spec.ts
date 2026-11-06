@@ -17,7 +17,8 @@ test.describe('micro-frontends', () => {
   });
 
   test('a failing remote does not break the shell', async ({ page }) => {
-    await page.route('**/remoteEntry.js', (route) => (route.request().url().includes('5176') || route.request().url().includes('mfe-admin') ? route.abort() : route.continue()));
+    // The admin remote lives at :5176 locally and under /_mfe/admin/ on Vercel.
+    await page.route('**/remoteEntry.js', (route) => (/5176|mfe-admin|\/_mfe\/admin\//.test(route.request().url()) ? route.abort() : route.continue()));
     await loginAs(page, 'alice');
     await page.goto('/admin');
     await expect(page.getByTestId('remote-error')).toContainText('Admin is unavailable');

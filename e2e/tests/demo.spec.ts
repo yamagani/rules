@@ -134,6 +134,8 @@ test('7. bob promotes default to v5, then rolls it back to v3', async ({ page, r
   await page.getByTestId('alias-version').selectOption('5');
   await page.getByTestId('alias-submit').click();
   await expectToast(page, 'default → v5');
+  // The screen re-fetches after an action; act again only once the new state has rendered.
+  await expect(page.getByTestId('aliases-table').getByTestId('row-default')).toContainText('v5');
   await expect.poll(async () => (await evaluate(request, token, 'eligibility')).headers()['x-rule-version'], { timeout: 15_000 }).toBe('5');
 
   await page.getByTestId('alias-name').selectOption('default');
