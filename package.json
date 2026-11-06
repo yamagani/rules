@@ -2,7 +2,9 @@
   "name": "rules",
   "private": true,
   "packageManager": "pnpm@10.28.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
@@ -10,8 +12,10 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "e2e": "turbo run e2e",
-    "db:up": "docker compose -f infra/docker-compose.yml up -d postgres",
-    "format": "prettier --write ."
+    "db:up": "docker compose -f infra/docker-compose.yml up -d --wait postgres",
+    "format": "prettier --write .",
+    "db:migrate": "pnpm --filter @rules/rules-service migrate",
+    "db:seed": "pnpm --filter @rules/rules-service seed:reset"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
