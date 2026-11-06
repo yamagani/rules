@@ -17,6 +17,8 @@ export default defineConfig({
     trace: 'off',
     screenshot: 'only-on-failure',
     viewport: { width: 1360, height: 900 },
+    // Vercel previews are behind Deployment Protection; CI passes the automation bypass secret.
+    extraHTTPHeaders: process.env.E2E_BYPASS_SECRET ? { 'x-vercel-protection-bypass': process.env.E2E_BYPASS_SECRET } : undefined,
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1360, height: 900 } } }],
 });
