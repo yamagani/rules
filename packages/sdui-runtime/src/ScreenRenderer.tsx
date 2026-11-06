@@ -84,7 +84,8 @@ export function ScreenRenderer({ config, mfe, screen, params = {}, navigate }: S
         try {
           const payload = resolveDeep(p.payload ?? {}, store) as Record<string, unknown>;
           const res = await postAction(config, (p.mfe as MfeName) ?? mfe, String(p.action), payload);
-          push(String(p.successMessage ?? res.message ?? 'Done'), 'success');
+          // Prefer the BFF's message (it carries results such as test counts).
+          push(String(res.message ?? p.successMessage ?? 'Done'), 'success');
           if (p.closeModal) store.set('/ui/modal', null);
           if (res.navigate) navigate(res.navigate);
           else if (res.refresh !== false) refresh();
