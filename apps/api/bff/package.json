@@ -13,7 +13,12 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.6",
-    "hono": "^4.10.0"
+    "hono": "^4.10.0",
+    "@rules/api-client": "workspace:*",
+    "@rules/auth": "workspace:*",
+    "@rules/schemas": "workspace:*",
+    "@rules/ui-registry": "workspace:*",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@rules/config": "workspace:*",
