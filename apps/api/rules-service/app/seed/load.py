@@ -3,7 +3,10 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.models import (
+    AiProvider,
+    AppAiSettings,
     Application,
     Base,
     Decision,
@@ -11,6 +14,7 @@ from app.models import (
     DecisionVersion,
     EvaluationStat,
     Permission,
+    ProviderType,
     RoleGrant,
     SubjectType,
     TestCase,
@@ -77,11 +81,7 @@ def seed(db: Session) -> bool:
             db.flush()
             audit.record(db, SEED_ACTOR, "version.seeded", app, decision, row, version=idx, status=status)
             for alias in aliases:
-                db.add(
-                    DecisionAlias(
-                        decision_id=decision.id, alias=alias, version_id=row.id, updated_by=SEED_ACTOR
-                    )
-                )
+                db.add(DecisionAlias(decision_id=decision.id, alias=alias, version_id=row.id, updated_by=SEED_ACTOR))
             # Background traffic for the usage view: active versions only, so deprecated
             # versions show no remaining callers.
             if status_enum == VersionStatus.active:
@@ -94,5 +94,40 @@ def seed(db: Session) -> bool:
                             count=40 + 13 * idx + 7 * day_offset,
                         )
                     )
+    _seed_ai(db, app)
     db.flush()
     return True
+
+
+def _seed_ai(db: Session, app: Application) -> None:
+    """A mock provider (enabled for the demo app) and a disabled Anthropic provider that works
+    once ANTHROPIC_API_KEY is set and an admin enables it. Model names come from configuration."""
+    settings = get_settings()
+    mock = AiProvider(
+        name="mock",
+        type=ProviderType.mock,
+        model="mock-jdm-fixtures",
+        enabled=True,
+        max_tokens=8000,
+        temperature=0.0,
+        timeout_s=30,
+        created_by=SEED_ACTOR,
+        options={},
+    )
+    anthropic = AiProvider(
+        name="anthropic",
+        type=ProviderType.anthropic,
+        model=settings.ai_default_model or "set-AI_DEFAULT_MODEL",
+        api_key_ref="env:ANTHROPIC_API_KEY",
+        enabled=False,
+        max_tokens=16000,
+        temperature=0.0,
+        timeout_s=90,
+        monthly_token_budget=2_000_000,
+        created_by=SEED_ACTOR,
+        options={},
+    )
+    db.add_all([mock, anthropic])
+    db.flush()
+    db.add(AppAiSettings(app_id=app.id, provider_id=mock.id))
+    audit.record(db, SEED_ACTOR, "ai.settings.updated", app, new={"provider_id": mock.id, "fallback_provider_id": None})
