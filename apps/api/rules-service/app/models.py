@@ -117,9 +117,7 @@ class TestCase(Base):
 class RoleGrant(Base):
     __tablename__ = "role_grants"
     __table_args__ = (
-        UniqueConstraint(
-            "subject_type", "subject", "app_id", "permission", postgresql_nulls_not_distinct=True
-        ),
+        UniqueConstraint("subject_type", "subject", "app_id", "permission", postgresql_nulls_not_distinct=True),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
     subject_type: Mapped[SubjectType] = mapped_column(_enum(SubjectType, "subject_type"))
@@ -143,8 +141,79 @@ class AuditLog(Base):
 class EvaluationStat(Base):
     __tablename__ = "evaluation_stats"
     decision_id: Mapped[int] = mapped_column(ForeignKey("decisions.id", ondelete="CASCADE"), index=True)
-    version_id: Mapped[int] = mapped_column(
-        ForeignKey("decision_versions.id", ondelete="CASCADE"), primary_key=True
-    )
+    version_id: Mapped[int] = mapped_column(ForeignKey("decision_versions.id", ondelete="CASCADE"), primary_key=True)
     day: Mapped[date] = mapped_column(Date, primary_key=True)
     count: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+# --- AI authoring ------------------------------------------------------------------------
+class ProviderType(enum.StrEnum):
+    anthropic = "anthropic"
+    openai = "openai"
+    azure_openai = "azure_openai"
+    openai_compatible = "openai_compatible"
+    mock = "mock"
+
+
+class RunStatus(enum.StrEnum):
+    succeeded = "succeeded"
+    failed = "failed"
+
+
+class RunKind(enum.StrEnum):
+    generate = "generate"
+    explain = "explain"
+    test_connection = "test_connection"
+
+
+class AiProvider(Base):
+    """An LLM provider configuration. Never stores a raw key: `api_key_ref` is resolved by
+    the SecretResolver at call time (e.g. `env:ANTHROPIC_API_KEY`, `aws-sm:prod/anthropic`)."""
+
+    __tablename__ = "ai_providers"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    type: Mapped[ProviderType] = mapped_column(_enum(ProviderType, "provider_type"))
+    model: Mapped[str] = mapped_column(String(200))
+    base_url: Mapped[str | None] = mapped_column(String(500))
+    api_key_ref: Mapped[str | None] = mapped_column(String(300))
+    max_tokens: Mapped[int] = mapped_column(Integer, default=8000)
+    temperature: Mapped[float] = mapped_column(default=0.0)
+    timeout_s: Mapped[int] = mapped_column(Integer, default=60)
+    enabled: Mapped[bool] = mapped_column(default=False)
+    monthly_token_budget: Mapped[int | None] = mapped_column(BigInteger)
+    # Provider-specific non-secret options, e.g. {"api_version": "2024-10-21"} for Azure.
+    options: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    created_by: Mapped[str] = mapped_column(String(200))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AppAiSettings(Base):
+    __tablename__ = "app_ai_settings"
+    app_id: Mapped[int] = mapped_column(ForeignKey("applications.id", ondelete="CASCADE"), primary_key=True)
+    provider_id: Mapped[int] = mapped_column(ForeignKey("ai_providers.id"))
+    fallback_provider_id: Mapped[int | None] = mapped_column(ForeignKey("ai_providers.id"))
+
+
+class GenerationRun(Base):
+    __tablename__ = "generation_runs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[RunKind] = mapped_column(_enum(RunKind, "run_kind"), default=RunKind.generate)
+    app_id: Mapped[int | None] = mapped_column(ForeignKey("applications.id", ondelete="CASCADE"), index=True)
+    decision_id: Mapped[int | None] = mapped_column(ForeignKey("decisions.id", ondelete="CASCADE"), index=True)
+    version_id: Mapped[int | None] = mapped_column(ForeignKey("decision_versions.id", ondelete="SET NULL"))
+    requested_by: Mapped[str] = mapped_column(String(200), index=True)
+    provider_id: Mapped[int | None] = mapped_column(ForeignKey("ai_providers.id", ondelete="SET NULL"))
+    provider_name: Mapped[str | None] = mapped_column(String(100))
+    model: Mapped[str | None] = mapped_column(String(200))
+    prompt_template_version: Mapped[str | None] = mapped_column(String(50))
+    request: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[RunStatus] = mapped_column(_enum(RunStatus, "run_status"))
+    validation_report: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    latency_ms: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

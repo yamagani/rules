@@ -80,9 +80,7 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def _validation(request: Request, exc: RequestValidationError) -> JSONResponse:
-        errors = [
-            {"loc": list(e.get("loc", ())), "msg": e.get("msg"), "type": e.get("type")} for e in exc.errors()
-        ]
+        errors = [{"loc": list(e.get("loc", ())), "msg": e.get("msg"), "type": e.get("type")} for e in exc.errors()]
         return problem_response(
             422,
             "Unprocessable Content",
@@ -94,6 +92,8 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        return problem_response(
-            exc.status_code, str(exc.detail), str(exc.detail), "about:blank", request.url.path
-        )
+        return problem_response(exc.status_code, str(exc.detail), str(exc.detail), "about:blank", request.url.path)
+
+
+class PayloadTooLarge(Problem):
+    status, title, type_ = 413, "Content Too Large", "https://rules.dev/problems/too-large"
