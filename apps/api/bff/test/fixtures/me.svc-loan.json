@@ -1,0 +1,1 @@
+{"subject":"svc-loan","roles":["agent"],"groups":[],"global_permissions":[],"apps":{"loan-origination":["evaluate"]}}

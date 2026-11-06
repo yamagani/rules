@@ -1,0 +1,1 @@
+{"subject":"alice","roles":["manager"],"groups":[],"global_permissions":["admin","edit","evaluate","publish","view"],"apps":{"loan-origination":["admin","edit","evaluate","publish","view"]}}
