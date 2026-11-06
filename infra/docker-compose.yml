@@ -1,0 +1,72 @@
+# Local stack: `docker compose -f infra/docker-compose.yml up --build`
+# For day-to-day development, `pnpm db:up && pnpm dev` (hot reload) is faster.
+name: rules
+
+# All JS services share one image; layers are cached so it is built once.
+x-web: &web
+  build:
+    context: ..
+    dockerfile: infra/node.Dockerfile
+  image: rules-web:local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rules
+      POSTGRES_PASSWORD: rules
+      POSTGRES_DB: rules
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rules"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes: [pgdata:/var/lib/postgresql/data]
+
+  rules-service:
+    build: ../apps/api/rules-service
+    environment:
+      ENV: local
+      DATABASE_URL: postgresql://rules:rules@postgres:5432/rules
+      DATABASE_URL_UNPOOLED: postgresql://rules:rules@postgres:5432/rules
+      AI_DEFAULT_PROVIDER: mock
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  bff:
+    <<: *web
+    command: ["pnpm", "--filter", "@rules/bff", "start"]
+    environment:
+      RULES_SERVICE_URL: http://rules-service:8000
+      PORT: "8787"
+    ports: ["8787:8787"]
+    depends_on: [rules-service]
+
+  mfe-rules:
+    <<: *web
+    command: ["pnpm", "--filter", "@rules/mfe-rules", "preview", "--host", "0.0.0.0"]
+    ports: ["5174:5174"]
+
+  mfe-releases:
+    <<: *web
+    command: ["pnpm", "--filter", "@rules/mfe-releases", "preview", "--host", "0.0.0.0"]
+    ports: ["5175:5175"]
+
+  mfe-admin:
+    <<: *web
+    command: ["pnpm", "--filter", "@rules/mfe-admin", "preview", "--host", "0.0.0.0"]
+    ports: ["5176:5176"]
+
+  shell:
+    <<: *web
+    command: ["pnpm", "--filter", "@rules/shell", "preview", "--host", "0.0.0.0"]
+    environment:
+      BFF_URL: http://bff:8787
+    ports: ["5173:5173"]
+    depends_on: [bff]
+
+volumes:
+  pgdata:
