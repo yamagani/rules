@@ -1,0 +1,22 @@
+{
+  "name": "@rules/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./tsconfig.react.json": "./tsconfig.react.json",
+    "./tsconfig.node.json": "./tsconfig.node.json",
+    "./eslint": "./eslint.config.js",
+    "./vitest": "./vitest.preset.js"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^16.5.0",
+    "typescript-eslint": "^8.48.0"
+  },
+  "peerDependencies": {
+    "eslint": "^9.0.0"
+  }
+}

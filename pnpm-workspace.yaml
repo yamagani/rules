@@ -1,0 +1,7 @@
+packages:
+  - apps/web/*
+  - apps/api/*
+  - packages/*
+  - e2e
+onlyBuiltDependencies:
+  - esbuild

@@ -17,3 +17,7 @@ __pycache__/
 playwright-report/
 test-results/
 .DS_Store
+@mf-types/
+@mf-types.*
+.__mf__temp/
+apps/web/*/public/mfe-manifest.json
