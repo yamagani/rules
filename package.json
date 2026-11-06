@@ -15,7 +15,11 @@
     "db:up": "docker compose -f infra/docker-compose.yml up -d --wait postgres",
     "format": "prettier --write .",
     "db:migrate": "pnpm --filter @rules/rules-service migrate",
-    "db:seed": "pnpm --filter @rules/rules-service seed:reset"
+    "db:seed": "pnpm --filter @rules/rules-service seed:reset",
+    "stack:up": "docker compose -f infra/docker-compose.yml up -d --build --wait",
+    "stack:down": "docker compose -f infra/docker-compose.yml down -v",
+    "stack:reseed": "docker compose -f infra/docker-compose.yml exec -T rules-service python -m app.seed --reset",
+    "e2e:compose": "pnpm stack:up && pnpm stack:reseed && pnpm e2e"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
