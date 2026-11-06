@@ -11,7 +11,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "e2e": "turbo run e2e",
+    "e2e": "pnpm --filter @rules/e2e e2e",
     "db:up": "docker compose -f infra/docker-compose.yml up -d --wait postgres",
     "format": "prettier --write .",
     "db:migrate": "pnpm --filter @rules/rules-service migrate",

@@ -1,13 +1,18 @@
-export interface RulesAppProps {
-  /** Base path the shell mounts this remote under (e.g. "/rules"). */
-  basePath: string;
+import { query, RemoteFrame, subpath, type RemoteAppProps, type ScreenRoute } from '@rules/sdui-runtime';
+import { useMemo } from 'react';
+
+/** /rules → decision list; /rules/<decision>?version=n&tab=… → editor, test panel, AI panel. */
+export function route(props: Pick<RemoteAppProps, 'basePath' | 'location'>): ScreenRoute {
+  const [decision] = subpath(props.basePath, props.location);
+  const q = query(props.location);
+  return decision ? { screen: 'decision', params: { decision, version: q.version, tab: q.tab } } : { screen: 'list', params: {} };
 }
 
-export default function RulesApp({ basePath }: RulesAppProps) {
+export default function RulesApp(props: RemoteAppProps) {
+  const r = useMemo(() => route(props), [props]);
   return (
-    <section data-testid="mfe-rules-root">
-      <h2>Rules</h2>
-      <p>Mounted at {basePath}. Screens arrive in Phase 4.</p>
-    </section>
+    <div data-testid="mfe-rules-root">
+      <RemoteFrame mfe="rules" route={r} props={props} />
+    </div>
   );
 }

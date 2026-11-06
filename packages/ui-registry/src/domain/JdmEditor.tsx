@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import type { z } from 'zod';
 import { useHost } from '../host';
 import type { domainSchemas } from './schemas';
-import { errorText, useAsync } from './util';
+import { errorText, stableStringify, useAsync } from './util';
 
 type Props = z.output<typeof domainSchemas.JdmEditor.props>;
 type Graph = { nodes: unknown[]; edges: unknown[] };
@@ -49,7 +49,7 @@ export function JdmEditor({ props }: BaseComponentProps<Props>) {
   const loaded = result?.key === requestKey ? result.data : null;
 
   const editable = !props.readOnly && props.canSave;
-  const dirty = !!graph && !!loaded && JSON.stringify(graph) !== JSON.stringify(loaded.content);
+  const dirty = !!graph && !!loaded && stableStringify(graph) !== stableStringify(loaded.content);
 
   const onSave = async () => {
     if (!graph) return;

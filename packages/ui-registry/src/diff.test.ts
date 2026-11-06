@@ -8,3 +8,11 @@ describe('sideBySide', () => {
     expect(right.map((l) => l.kind)).toEqual(['same', 'pad', 'same', 'add']);
   });
 });
+
+describe('stableStringify', () => {
+  it('ignores key order', async () => {
+    const { stableStringify } = await import('./domain/util');
+    expect(stableStringify({ b: 1, a: [{ y: 2, x: 1 }] })).toBe(stableStringify({ a: [{ x: 1, y: 2 }], b: 1 }));
+    expect(stableStringify({ a: 1 })).not.toBe(stableStringify({ a: 2 }));
+  });
+});

@@ -65,6 +65,24 @@ importers:
 
   apps/web/mfe-admin:
     dependencies:
+      '@json-render/core':
+        specifier: 0.22.0
+        version: 0.22.0(zod@4.6.7)
+      '@json-render/react':
+        specifier: 0.22.0
+        version: 0.22.0(react@19.3.1)(zod@4.6.7)
+      '@rules/auth':
+        specifier: workspace:*
+        version: link:../../../packages/auth
+      '@rules/schemas':
+        specifier: workspace:*
+        version: link:../../../packages/schemas
+      '@rules/sdui-runtime':
+        specifier: workspace:*
+        version: link:../../../packages/sdui-runtime
+      '@rules/ui-registry':
+        specifier: workspace:*
+        version: link:../../../packages/ui-registry
       react:
         specifier: ^19.2.3
         version: 19.3.1
@@ -99,6 +117,24 @@ importers:
 
   apps/web/mfe-releases:
     dependencies:
+      '@json-render/core':
+        specifier: 0.22.0
+        version: 0.22.0(zod@4.6.7)
+      '@json-render/react':
+        specifier: 0.22.0
+        version: 0.22.0(react@19.3.1)(zod@4.6.7)
+      '@rules/auth':
+        specifier: workspace:*
+        version: link:../../../packages/auth
+      '@rules/schemas':
+        specifier: workspace:*
+        version: link:../../../packages/schemas
+      '@rules/sdui-runtime':
+        specifier: workspace:*
+        version: link:../../../packages/sdui-runtime
+      '@rules/ui-registry':
+        specifier: workspace:*
+        version: link:../../../packages/ui-registry
       react:
         specifier: ^19.2.3
         version: 19.3.1
@@ -133,6 +169,24 @@ importers:
 
   apps/web/mfe-rules:
     dependencies:
+      '@json-render/core':
+        specifier: 0.22.0
+        version: 0.22.0(zod@4.6.7)
+      '@json-render/react':
+        specifier: 0.22.0
+        version: 0.22.0(react@19.3.1)(zod@4.6.7)
+      '@rules/auth':
+        specifier: workspace:*
+        version: link:../../../packages/auth
+      '@rules/schemas':
+        specifier: workspace:*
+        version: link:../../../packages/schemas
+      '@rules/sdui-runtime':
+        specifier: workspace:*
+        version: link:../../../packages/sdui-runtime
+      '@rules/ui-registry':
+        specifier: workspace:*
+        version: link:../../../packages/ui-registry
       react:
         specifier: ^19.2.3
         version: 19.3.1
@@ -167,9 +221,27 @@ importers:
 
   apps/web/shell:
     dependencies:
+      '@json-render/core':
+        specifier: 0.22.0
+        version: 0.22.0(zod@4.6.7)
+      '@json-render/react':
+        specifier: 0.22.0
+        version: 0.22.0(react@19.3.1)(zod@4.6.7)
       '@module-federation/runtime':
         specifier: ^2.9.3
         version: 2.9.3
+      '@rules/auth':
+        specifier: workspace:*
+        version: link:../../../packages/auth
+      '@rules/schemas':
+        specifier: workspace:*
+        version: link:../../../packages/schemas
+      '@rules/sdui-runtime':
+        specifier: workspace:*
+        version: link:../../../packages/sdui-runtime
+      '@rules/ui-registry':
+        specifier: workspace:*
+        version: link:../../../packages/ui-registry
       react:
         specifier: ^19.2.3
         version: 19.3.1
@@ -204,6 +276,24 @@ importers:
       vite:
         specifier: ^8.0.0
         version: 8.3.6(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)
+
+  e2e:
+    devDependencies:
+      '@playwright/test':
+        specifier: 1.63.0
+        version: 1.63.0
+      '@rules/config':
+        specifier: workspace:*
+        version: link:../packages/config
+      '@types/node':
+        specifier: ^22.19.0
+        version: 22.20.5
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.5
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
   packages/api-client:
     dependencies:
@@ -948,6 +1038,11 @@ packages:
 
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
+
+  '@playwright/test@1.63.0':
+    resolution: {integrity: sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   '@rc-component/async-validator@5.1.2':
     resolution: {integrity: sha512-WYbrZSjzznU1ekD0qFq2qRxt309VoS61MTG5npnFQlKYcoy9IzU8T+ZCIhq5bGAXRbXysABFWTspicMfmWFwow==}
@@ -2613,6 +2708,16 @@ packages:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
 
+  playwright-core@1.63.0:
+    resolution: {integrity: sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.63.0:
+    resolution: {integrity: sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   pluralize@8.0.0:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
@@ -4110,6 +4215,10 @@ snapshots:
       react-dom: 19.3.1(react@19.3.1)
 
   '@oxc-project/types@0.156.0': {}
+
+  '@playwright/test@1.63.0':
+    dependencies:
+      playwright: 1.63.0
 
   '@rc-component/async-validator@5.1.2':
     dependencies:
@@ -6000,6 +6109,12 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.7: {}
+
+  playwright-core@1.63.0: {}
+
+  playwright@1.63.0:
+    dependencies:
+      playwright-core: 1.63.0
 
   pluralize@8.0.0: {}
 

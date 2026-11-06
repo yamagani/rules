@@ -289,3 +289,37 @@ BFF tests use an in-process fake rules-service that answers from JSON captured f
 freshly seeded instance (`apps/api/bff/test/capture-fixtures.sh`), so the JS CI job needs
 no database. End-to-end behaviour against the real service is covered by Playwright in
 Phase 5.
+
+## Phase 4 — micro-frontends and shell
+
+### D-401 Shell ↔ remote contract
+Each remote exposes one default component taking `RemoteAppProps`:
+`{ basePath, location, navigate, session, config }` (`@rules/sdui-runtime`).
+- The shell owns the session, routing (History API) and the permission-filtered nav: Rules
+  and Releases need `view`, Admin needs `admin`.
+- Each remote maps its sub-path to a BFF screen and wraps it in its own `SessionProvider`,
+  so remotes do not depend on React context crossing a federation boundary.
+- Every remote is wrapped in a per-remote error boundary with Retry. A failed remote load
+  is not cached, so Retry works once the remote is back.
+
+### D-402 Shared singletons; `@json-render/core` is eager
+`react`, `react-dom`, `@json-render/*`, `@rules/ui-registry/*`, `@rules/sdui-runtime` and
+`@rules/auth*` are shared singletons (`federation.shared.ts`; CI checks the file is
+identical in all four apps). `@json-render/core` is marked `eager`: `@json-render/react`'s
+schema module calls `defineSchema` while it is being evaluated. Without `eager`, a remote
+running as its own page (standalone production build) failed with
+`defineSchema is not a function` before the lazy share resolved.
+
+### D-403 Standalone remotes use a mock session
+`StandaloneHost` runs a remote without the shell. It proxies `/bff` to the BFF, and when
+demo login is available it signs in as `VITE_MOCK_USER` (defaults: carol for Rules, bob for
+Releases, alice for Admin), with a visible "Standalone remote · mock session" banner.
+
+### D-404 Graph comparisons ignore key order
+Postgres JSONB does not preserve object key order, so the editor's "unsaved changes" check
+compares graphs with a key-sorted serialization.
+
+### D-405 Bundle size
+The GoRules editor (antd, Monaco, React Flow) is a lazy chunk. Because `ui-registry` is a
+shared singleton, each app build contains the chunk, but browsers download it only when an
+editor renders.

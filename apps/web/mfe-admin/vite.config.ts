@@ -4,6 +4,7 @@ import { federation } from '@module-federation/vite';
 import { sharedDeps } from './federation.shared.ts';
 
 const port = 5176;
+const bff = process.env.BFF_URL ?? 'http://localhost:8787';
 
 export default defineConfig({
   base: process.env.VITE_PUBLIC_BASE ?? '/',
@@ -18,7 +19,8 @@ export default defineConfig({
       dts: false,
     }),
   ],
-  server: { port, origin: `http://localhost:${port}`, cors: true },
-  preview: { port, cors: true },
+  // Standalone mode talks to the BFF through the same /bff path the shell uses.
+  server: { port, origin: `http://localhost:${port}`, cors: true, proxy: { '/bff': { target: bff, changeOrigin: true } } },
+  preview: { port, cors: true, proxy: { '/bff': { target: bff, changeOrigin: true } } },
   build: { target: 'es2022' },
 });
