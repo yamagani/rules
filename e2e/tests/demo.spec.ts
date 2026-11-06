@@ -6,6 +6,7 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 import { expectToast, loginAs, openScreen, rowAction } from './helpers';
 
 const RULES_SERVICE = process.env.E2E_RULES_SERVICE_URL ?? 'http://localhost:8000';
+// Vercel previews: the request fixture inherits extraHTTPHeaders (bypass secret) from the config.
 const APP = '/v1/apps/loan-origination/decisions';
 const ADULT_78 = { applicant: { age: 78, creditScore: 700 }, loan: { amount: 100000 } };
 

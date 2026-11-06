@@ -2,6 +2,7 @@ import type { Schemas } from '@rules/api-client';
 import { hasPermission } from '@rules/auth';
 import type { Permission, Session } from '@rules/schemas';
 import type { Context } from 'hono';
+import { rulesServiceFetch } from './config';
 import { appParam, call, rules, userToken, type Env } from './context';
 
 let demoModeCache: { value: boolean; at: number } | undefined;
@@ -10,7 +11,7 @@ let demoModeCache: { value: boolean; at: number } | undefined;
 export async function demoMode(c: Context<Env>): Promise<boolean> {
   if (demoModeCache && Date.now() - demoModeCache.at < 60_000) return demoModeCache.value;
   try {
-    const res = await (c.get('config').fetch ?? fetch)(`${c.get('config').rulesServiceUrl}/health`);
+    const res = await rulesServiceFetch(c.get('config'))(`${c.get('config').rulesServiceUrl}/health`);
     const body = (await res.json()) as { demo_auth?: string };
     demoModeCache = { value: body.demo_auth === 'true', at: Date.now() };
   } catch {

@@ -1,0 +1,283 @@
+# Preview + production deployments on Vercel with Neon Postgres.
+#
+#   PR opened/updated → Neon branch preview/pr-<n> (created from main or reused) → migrations →
+#                       demo seed → Vercel previews (rules-service, bff, changed remotes, shell)
+#                       → smoke checks → Playwright against the preview → PR comment with URLs
+#   PR closed         → delete the Neon branch
+#   push to main      → migrations on Neon main → production deploys → demo-login-rejected check
+#
+# Migrations always run here, before deploys, never at function cold start. Seed data goes
+# only to preview branches. Required secrets are listed in infra/vercel/README.md; without
+# them every job reports what is missing and skips.
+name: Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+  NEON_BRANCH: preview/pr-${{ github.event.pull_request.number }}
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          S_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          S_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          S_NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          S_NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          S_DEMO_JWT_SECRET: ${{ secrets.DEMO_JWT_SECRET }}
+          S_PID_SHELL: ${{ secrets.VERCEL_PROJECT_ID_SHELL }}
+          S_PID_MFE_RULES: ${{ secrets.VERCEL_PROJECT_ID_MFE_RULES }}
+          S_PID_MFE_RELEASES: ${{ secrets.VERCEL_PROJECT_ID_MFE_RELEASES }}
+          S_PID_MFE_ADMIN: ${{ secrets.VERCEL_PROJECT_ID_MFE_ADMIN }}
+          S_PID_BFF: ${{ secrets.VERCEL_PROJECT_ID_BFF }}
+          S_PID_RULES_SERVICE: ${{ secrets.VERCEL_PROJECT_ID_RULES_SERVICE }}
+        run: |
+          missing=""
+          for n in $(env | grep -o '^S_[A-Z_]*'); do [ -z "${!n}" ] && missing="$missing ${n#S_}"; done
+          if [ -n "$missing" ]; then
+            { echo "### Deploy skipped"; echo "Missing repository secrets:$missing"; echo; echo "See infra/vercel/README.md."; } >> "$GITHUB_STEP_SUMMARY"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  preview:
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true' && github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: preview
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: '3.12' }
+      - run: pnpm install --frozen-lockfile
+
+      - name: Neon branch for this PR (created from main, or reused)
+        id: neon
+        uses: neondatabase/create-branch-action@v6
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+          branch_name: ${{ env.NEON_BRANCH }}
+          parent_branch: main
+
+      - name: Migrate (direct connection)
+        working-directory: apps/api/rules-service
+        env:
+          ENV: preview
+          DATABASE_URL: ${{ steps.neon.outputs.db_url_pooled }}
+          DATABASE_URL_UNPOOLED: ${{ steps.neon.outputs.db_url }}
+        run: uv run alembic upgrade head
+
+      - name: Seed demo data (preview branches only)
+        working-directory: apps/api/rules-service
+        env:
+          ENV: preview
+          DATABASE_URL: ${{ steps.neon.outputs.db_url }}
+        run: uv run python -m app.seed --reset
+
+      - name: Which remotes changed?
+        id: changed
+        run: |
+          base="origin/${{ github.base_ref }}"
+          for pkg in mfe-rules mfe-releases mfe-admin; do
+            # turbo-ignore exits 0 when nothing in the package or its workspace deps changed.
+            if npx --yes turbo-ignore@2 "@rules/$pkg" --fallback="$base" >/dev/null 2>&1; then
+              echo "$pkg=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "$pkg=true" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+      - name: Deploy rules-service
+        id: rs
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_RULES_SERVICE }}
+        run: |
+          url=$(npx --yes vercel@latest deploy --yes --token "$VERCEL_TOKEN" \
+            --env ENV=preview --env DEMO_AUTH=true \
+            --env DEV_JWT_SECRET="${{ secrets.DEMO_JWT_SECRET }}" \
+            --env DATABASE_URL="${{ steps.neon.outputs.db_url_pooled }}" \
+            --env DATABASE_URL_UNPOOLED="${{ steps.neon.outputs.db_url }}" \
+            --env AI_DEFAULT_PROVIDER=mock)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy bff
+        id: bff
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_BFF }}
+        run: |
+          url=$(npx --yes vercel@latest deploy --yes --token "$VERCEL_TOKEN" \
+            --env RULES_SERVICE_URL="${{ steps.rs.outputs.url }}" \
+            --env RULES_SERVICE_BYPASS_SECRET="${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy changed remotes (others fall back to production)
+        id: remotes
+        run: |
+          declare -A pid=(
+            [mfe-rules]="${{ secrets.VERCEL_PROJECT_ID_MFE_RULES }}"
+            [mfe-releases]="${{ secrets.VERCEL_PROJECT_ID_MFE_RELEASES }}"
+            [mfe-admin]="${{ secrets.VERCEL_PROJECT_ID_MFE_ADMIN }}")
+          declare -A prod=(
+            [mfe-rules]="${{ vars.PROD_URL_MFE_RULES }}"
+            [mfe-releases]="${{ vars.PROD_URL_MFE_RELEASES }}"
+            [mfe-admin]="${{ vars.PROD_URL_MFE_ADMIN }}")
+          declare -A changed=(
+            [mfe-rules]="${{ steps.changed.outputs.mfe-rules }}"
+            [mfe-releases]="${{ steps.changed.outputs.mfe-releases }}"
+            [mfe-admin]="${{ steps.changed.outputs.mfe-admin }}")
+          for app in mfe-rules mfe-releases mfe-admin; do
+            if [ "${changed[$app]}" = "true" ] || [ -z "${prod[$app]}" ]; then
+              url=$(VERCEL_PROJECT_ID="${pid[$app]}" npx --yes vercel@latest deploy --yes --token "$VERCEL_TOKEN")
+            else
+              url="${prod[$app]}"
+            fi
+            echo "${app}=${url}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Deploy shell (manifest points at the preview remotes)
+        id: shell
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_SHELL }}
+        run: |
+          url=$(npx --yes vercel@latest deploy --yes --token "$VERCEL_TOKEN" \
+            --build-env VITE_REMOTE_RULES_URL="${{ steps.remotes.outputs.mfe-rules }}" \
+            --build-env VITE_REMOTE_RELEASES_URL="${{ steps.remotes.outputs.mfe-releases }}" \
+            --build-env VITE_REMOTE_ADMIN_URL="${{ steps.remotes.outputs.mfe-admin }}" \
+            --env BFF_URL="${{ steps.bff.outputs.url }}" \
+            --env BFF_BYPASS_SECRET="${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke checks
+        env:
+          BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          h=(); [ -n "$BYPASS" ] && h=(-H "x-vercel-protection-bypass: $BYPASS")
+          curl -fsS "${h[@]}" "${{ steps.rs.outputs.url }}/health"
+          curl -fsS "${h[@]}" "${{ steps.rs.outputs.url }}/health/db"
+          curl -fsS "${h[@]}" "${{ steps.shell.outputs.url }}/bff/health"
+          curl -fsS "${h[@]}" "${{ steps.shell.outputs.url }}/mfe-manifest.json"
+
+      - name: Playwright against the preview
+        env:
+          E2E_BASE_URL: ${{ steps.shell.outputs.url }}
+          E2E_RULES_SERVICE_URL: ${{ steps.rs.outputs.url }}
+          E2E_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          pnpm --filter @rules/e2e exec playwright install --with-deps chromium
+          pnpm e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: preview-playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
+
+      - name: Comment preview URLs on the PR
+        if: always() && steps.shell.outputs.url != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body=$(cat <<MD
+          ### Preview
+          | | URL |
+          |---|---|
+          | **Shell (open this)** | ${{ steps.shell.outputs.url }} |
+          | BFF | ${{ steps.bff.outputs.url }} |
+          | rules-service | ${{ steps.rs.outputs.url }} |
+          | mfe-rules | ${{ steps.remotes.outputs.mfe-rules }} |
+          | mfe-releases | ${{ steps.remotes.outputs.mfe-releases }} |
+          | mfe-admin | ${{ steps.remotes.outputs.mfe-admin }} |
+
+          Neon branch \`${{ env.NEON_BRANCH }}\`, migrated and seeded. Demo login: alice, bob, carol, dave, svc-loan.
+          MD
+          )
+          gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" -f body="$body" >/dev/null
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+
+  cleanup:
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true' && github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the PR's Neon branch
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+          branch: ${{ env.NEON_BRANCH }}
+
+  production:
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: '3.12' }
+      - run: pnpm install --frozen-lockfile
+
+      - name: Migrate Neon main (direct connection) before deploying
+        working-directory: apps/api/rules-service
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          direct=$(npx --yes neonctl@2 connection-string main --project-id "$NEON_PROJECT_ID" --api-key "$NEON_API_KEY")
+          echo "::add-mask::$direct"
+          ENV=production DATABASE_URL_UNPOOLED="$direct" DATABASE_URL="$direct" uv run alembic upgrade head
+
+      - name: Deploy production (env vars come from each Vercel project's Production settings)
+        id: deploy
+        run: |
+          for pair in \
+            "rules-service:${{ secrets.VERCEL_PROJECT_ID_RULES_SERVICE }}" \
+            "bff:${{ secrets.VERCEL_PROJECT_ID_BFF }}" \
+            "mfe-rules:${{ secrets.VERCEL_PROJECT_ID_MFE_RULES }}" \
+            "mfe-releases:${{ secrets.VERCEL_PROJECT_ID_MFE_RELEASES }}" \
+            "mfe-admin:${{ secrets.VERCEL_PROJECT_ID_MFE_ADMIN }}" \
+            "shell:${{ secrets.VERCEL_PROJECT_ID_SHELL }}"; do
+            name=${pair%%:*}
+            url=$(VERCEL_PROJECT_ID="${pair#*:}" npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN")
+            echo "$name=$url" >> "$GITHUB_OUTPUT"
+            echo "- $name: $url" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Production rejects demo login and requires OIDC
+        run: |
+          rs="${{ vars.PROD_URL_RULES_SERVICE || steps.deploy.outputs.rules-service }}"
+          curl -fsS "$rs/health" | tee /dev/stderr | grep -q '"demo_auth":"false"'
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$rs/v1/dev/token" -H 'content-type: application/json' -d '{"username":"alice"}')
+          [ "$code" = "404" ] || { echo "::error::dev token issuer answered $code on production"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$rs/v1/apps")
+          [ "$code" = "401" ] || { echo "::error::unauthenticated request answered $code"; exit 1; }

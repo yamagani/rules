@@ -1,7 +1,7 @@
 import { createRulesClient, type RulesClient } from '@rules/api-client';
 import type { Context } from 'hono';
 import { getCookie } from 'hono/cookie';
-import type { BffConfig } from './config';
+import { rulesServiceFetch, type BffConfig } from './config';
 import { HttpProblem, problem } from './errors';
 
 export const SESSION_COOKIE = 'rules_session';
@@ -22,7 +22,7 @@ export function rules(c: Context<Env>): RulesClient {
     baseUrl: config.rulesServiceUrl,
     token: userToken(c),
     requestId: c.get('requestId'),
-    fetch: config.fetch,
+    fetch: rulesServiceFetch(config),
   });
 }
 
