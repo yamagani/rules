@@ -25,7 +25,7 @@ jobs:
         run: for f in apps/web/*/federation.shared.ts; do diff -u apps/web/shell/federation.shared.ts "$f"; done
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm --filter '!@rules/rules-service' test
+      - run: pnpm --filter '!@rules/rules-service' --filter '!@rules/e2e' test
       - run: pnpm build
 
   python:
@@ -59,3 +59,32 @@ jobs:
         run: |
           uv export --no-dev --no-hashes --format requirements-txt -q -o /tmp/req.txt
           diff <(grep -v '^#' requirements.txt) <(grep -v '^#' /tmp/req.txt)
+
+  e2e:
+    name: e2e (docker compose + Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Start the stack
+        run: pnpm stack:up
+      - name: Fresh demo data
+        run: pnpm stack:reseed
+      - name: Install Chromium
+        run: pnpm --filter @rules/e2e exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - name: Service logs
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml logs --no-color --tail 200
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7

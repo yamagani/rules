@@ -2,7 +2,7 @@ export { ScreenRenderer, ScreenErrorView, type ScreenRendererProps } from './Scr
 export { useScreen, type ScreenError, type ScreenState } from './useScreen';
 export { fetchScreen, postAction, type RuntimeConfig } from './client';
 export { resolveDeep } from './resolve';
-export { ToastStack, useToasts } from './Toasts';
+export { pushToast, ToastStack, useToasts } from './Toasts';
 export {
   RemoteFrame,
   StandaloneHost,
