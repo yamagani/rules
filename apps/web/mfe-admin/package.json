@@ -1,0 +1,27 @@
+{
+  "name": "@rules/mfe-admin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5176 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 5176 --strictPort",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@module-federation/vite": "^1.23.10",
+    "@rules/config": "workspace:*",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0"
+  }
+}
