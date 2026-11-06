@@ -21,6 +21,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with: { python-version: '3.12', enable-cache: false }
       - run: pnpm install --frozen-lockfile
+      - name: Module Federation shared singletons are identical in every web app
+        run: for f in apps/web/*/federation.shared.ts; do diff -u apps/web/shell/federation.shared.ts "$f"; done
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm --filter '!@rules/rules-service' test
