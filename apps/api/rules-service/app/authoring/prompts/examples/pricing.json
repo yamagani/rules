@@ -1,0 +1,41 @@
+{
+  "description": "Price by credit band: 740+ is prime at 4.5% (plus 0.25% above 500,000), 670+ is near-prime at 6.5%, otherwise subprime at 9.5%. Output band and rate.",
+  "jdm": {
+    "nodes": [
+      { "id": "request", "type": "inputNode", "name": "Request", "position": { "x": 40, "y": 160 } },
+      {
+        "id": "switch", "type": "switchNode", "name": "Credit band", "position": { "x": 280, "y": 160 },
+        "content": {
+          "hitPolicy": "first",
+          "statements": [
+            { "id": "prime", "condition": "applicant.creditScore >= 740" },
+            { "id": "near", "condition": "applicant.creditScore >= 670" },
+            { "id": "sub", "condition": "" }
+          ]
+        }
+      },
+      { "id": "x-prime", "type": "expressionNode", "name": "Prime", "position": { "x": 560, "y": 40 },
+        "content": { "expressions": [
+          { "id": "p1", "key": "band", "value": "'prime'" },
+          { "id": "p2", "key": "rate", "value": "0.045 + (loan.amount > 500000 ? 0.0025 : 0)" } ] } },
+      { "id": "x-near", "type": "expressionNode", "name": "Near prime", "position": { "x": 560, "y": 180 },
+        "content": { "expressions": [
+          { "id": "n1", "key": "band", "value": "'near-prime'" },
+          { "id": "n2", "key": "rate", "value": "0.065" } ] } },
+      { "id": "x-sub", "type": "expressionNode", "name": "Subprime", "position": { "x": 560, "y": 320 },
+        "content": { "expressions": [
+          { "id": "s1", "key": "band", "value": "'subprime'" },
+          { "id": "s2", "key": "rate", "value": "0.095" } ] } },
+      { "id": "response", "type": "outputNode", "name": "Response", "position": { "x": 860, "y": 160 } }
+    ],
+    "edges": [
+      { "id": "e1", "sourceId": "request", "targetId": "switch", "type": "edge" },
+      { "id": "e2", "sourceId": "switch", "targetId": "x-prime", "sourceHandle": "prime", "type": "edge" },
+      { "id": "e3", "sourceId": "switch", "targetId": "x-near", "sourceHandle": "near", "type": "edge" },
+      { "id": "e4", "sourceId": "switch", "targetId": "x-sub", "sourceHandle": "sub", "type": "edge" },
+      { "id": "e5", "sourceId": "x-prime", "targetId": "response", "type": "edge" },
+      { "id": "e6", "sourceId": "x-near", "targetId": "response", "type": "edge" },
+      { "id": "e7", "sourceId": "x-sub", "targetId": "response", "type": "edge" }
+    ]
+  }
+}
