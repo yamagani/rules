@@ -344,3 +344,51 @@ is not lost.
 ### D-503 Demo step 6 wording
 The demo checks v2's usage *after* step 5 has called it once, so the usage table shows one
 call (the demo's own) rather than zero. `DEMO.md` says so explicitly.
+
+## Phase 6 — Vercel + Neon
+
+### D-601 The shell proxies `/bff/*` with an edge function — **Deviation**
+The prompt asks for a `vercel.json` rewrite from the shell to the BFF. Rewrites cannot read
+environment variables, so every preview shell would call the production BFF. The shell
+instead uses the Build Output API with a small edge function that forwards `/bff/*` to
+`BFF_URL` for that deployment, so the browser still sees a single origin. The static files,
+the SPA fallback and the cache headers are declared in the same output `config.json`.
+
+### D-602 The BFF ships as one esbuild bundle
+Workspace packages export TypeScript source (D-205), so the BFF is bundled with esbuild into
+a single Node.js 22 function (Build Output API), and the bundle has no runtime dependency
+on the monorepo. Verified locally by serving the bundled handler from outside the
+repository.
+
+### D-603 Deployments are driven by GitHub Actions
+`deploy.yml` creates or reuses the PR's Neon branch, migrates it (direct URL), seeds it,
+then deploys previews with per-deployment env: rules-service → BFF → changed remotes →
+shell. The shell's manifest points at the preview remotes that were deployed and falls back
+to production remotes for unchanged ones; `turbo-ignore` decides which changed. The job
+then runs the Playwright suite against the preview and comments the URLs on the PR.
+
+On merge, the job migrates Neon `main`, deploys production, and asserts that production
+rejects demo login: `/v1/dev/token` returns 404, `/health` reports `demo_auth:false`, and
+unauthenticated calls return 401. Each app's `vercel.json` keeps `npx turbo-ignore` as
+the Ignored Build Step for teams that prefer Git-triggered builds.
+
+### D-604 Deployment Protection
+Preview deployments are protected. Server-to-server calls (shell → BFF → rules-service)
+and Playwright send the "Protection Bypass for Automation" secret. The three remote
+projects serve only public static JavaScript and must be unprotected, because a protected
+remote cannot be loaded as a module from the shell's origin.
+
+### D-605 Client bundle secret scan
+CI builds the web apps with canary values in every secret-bearing env var, then greps all
+built static assets for those values and for key-shaped strings (Anthropic/OpenAI keys,
+credentialed Postgres URLs, private keys, Neon passwords). A planted canary was confirmed
+to fail the check.
+
+### D-606 Status of the live deployment
+Vercel and Neon APIs are not reachable from the build session, and the repository has no
+Vercel or Neon secrets yet. The workflows therefore skip with a summary listing the missing
+secrets, and the Phase 6 PR stays open until they are configured. Verified locally:
+- the BFF bundle serves requests;
+- the shell's Build Output (static files, manifest from env, edge proxy forwarding
+  cookies, query strings and bodies) works;
+- `zen-engine` runs on Amazon Linux 2023 / Python 3.12 (D-007).
