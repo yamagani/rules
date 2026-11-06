@@ -26,7 +26,22 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm --filter '!@rules/rules-service' --filter '!@rules/e2e' test
-      - run: pnpm build
+      - name: Build with canary secrets in the environment
+        run: pnpm build
+        env:
+          ANTHROPIC_API_KEY: sk-ant-ci-canary-do-not-ship-0123456789
+          OPENAI_API_KEY: sk-ci-canary-do-not-ship-0123456789abcdefghijkl
+          DATABASE_URL: postgresql://canary:canary-password@canary.neon.tech/canary
+          DATABASE_URL_UNPOOLED: postgresql://canary:canary-password@canary-direct.neon.tech/canary
+          DEV_JWT_SECRET: ci-canary-jwt-secret-do-not-ship
+      - name: No secrets in client bundles
+        run: bash scripts/check-client-bundles.sh
+        env:
+          ANTHROPIC_API_KEY: sk-ant-ci-canary-do-not-ship-0123456789
+          OPENAI_API_KEY: sk-ci-canary-do-not-ship-0123456789abcdefghijkl
+          DATABASE_URL: postgresql://canary:canary-password@canary.neon.tech/canary
+          DATABASE_URL_UNPOOLED: postgresql://canary:canary-password@canary-direct.neon.tech/canary
+          DEV_JWT_SECRET: ci-canary-jwt-secret-do-not-ship
 
   python:
     name: rules-service (ruff · mypy · pytest)
