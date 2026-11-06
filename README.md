@@ -64,6 +64,14 @@ pnpm e2e:compose                           # Playwright against docker compose (
 cd apps/api/rules-service && uv run pytest -m live   # optional: real Anthropic call (needs ANTHROPIC_API_KEY, AI_DEFAULT_MODEL)
 ```
 
+## Deploy (Vercel + Neon)
+
+Three Vercel projects (`rules-web`, `rules-bff`, `rules-api`) connected to this repo. Neon
+reaches the API through the Neon–Vercel integration, with a database branch per preview.
+One-time setup: `bash infra/vercel/setup.sh`, then follow
+[infra/vercel/README.md](infra/vercel/README.md). After that, every PR gets previews and
+every merge to `main` deploys production.
+
 ## Layout
 
 ```

@@ -1,57 +1,57 @@
 #!/usr/bin/env bash
-# Create/link the six Vercel projects for this monorepo and set their Root Directories.
-# No secrets live in this file: it reads VERCEL_TOKEN (and optional VERCEL_TEAM_ID) from
-# your environment and prints the project ids to store as GitHub secrets.
+# Create the three Vercel projects for this monorepo, connect them to the GitHub repo, set
+# their Root Directories, and write the project ids into the `relatedProjects` lists that let
+# web → bff → api find each other (same-branch previews, production domains).
+#
+# No secrets live in this file: it reads VERCEL_TOKEN (and optional VERCEL_TEAM_ID) from your
+# environment. Requires the Vercel GitHub app to have access to the repository.
 #
 #   export VERCEL_TOKEN=...            # https://vercel.com/account/tokens
 #   export VERCEL_TEAM_ID=team_...     # optional, for team scopes
-#   bash infra/vercel/setup.sh
+#   bash infra/vercel/setup.sh [owner/repo]
+#
+# Afterwards: commit the updated vercel.json files, and connect the Neon integration to
+# `rules-api` (see infra/vercel/README.md).
 set -euo pipefail
 : "${VERCEL_TOKEN:?export VERCEL_TOKEN first}"
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
-
+REPO=${1:-$(git config --get remote.origin.url | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')}
+ROOT=$(git rev-parse --show-toplevel)
 API=https://api.vercel.com
-scope=()
-q=""
-if [ -n "${VERCEL_TEAM_ID:-}" ]; then scope=(--scope "$VERCEL_TEAM_ID"); q="?teamId=$VERCEL_TEAM_ID"; fi
-vercel() { npx --yes vercel@latest "$@" --token "$VERCEL_TOKEN" "${scope[@]}"; }
+q=""; [ -n "${VERCEL_TEAM_ID:-}" ] && q="?teamId=$VERCEL_TEAM_ID"
 api() { curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" -H 'Content-Type: application/json' "$@"; }
 
-# name | root directory | framework (null = build command decides / Build Output API)
-projects=(
-  "rules-shell|apps/web/shell|null"
-  "rules-mfe-rules|apps/web/mfe-rules|\"vite\""
-  "rules-mfe-releases|apps/web/mfe-releases|\"vite\""
-  "rules-mfe-admin|apps/web/mfe-admin|\"vite\""
-  "rules-bff|apps/api/bff|null"
-  "rules-service|apps/api/rules-service|null"
-)
-
-declare -A secret_names=(
-  [rules-shell]=VERCEL_PROJECT_ID_SHELL
-  [rules-mfe-rules]=VERCEL_PROJECT_ID_MFE_RULES
-  [rules-mfe-releases]=VERCEL_PROJECT_ID_MFE_RELEASES
-  [rules-mfe-admin]=VERCEL_PROJECT_ID_MFE_ADMIN
-  [rules-bff]=VERCEL_PROJECT_ID_BFF
-  [rules-service]=VERCEL_PROJECT_ID_RULES_SERVICE
-)
+# name | root directory
+projects=("rules-web|apps/web/shell" "rules-bff|apps/api/bff" "rules-api|apps/api/rules-service")
+declare -A ids
 
 for entry in "${projects[@]}"; do
-  IFS='|' read -r name root framework <<<"$entry"
-  echo "==> $name ($root)"
-  vercel project add "$name" >/dev/null 2>&1 || echo "    (already exists)"
+  IFS='|' read -r name root <<<"$entry"
+  echo "==> $name ($root) ← github.com/$REPO"
+  if ! api "$API/v9/projects/$name$q" >/dev/null 2>&1; then
+    api -X POST "$API/v11/projects$q" -d "$(jq -n --arg n "$name" --arg r "$REPO" \
+      '{name: $n, framework: null, gitRepository: {type: "github", repo: $r}}')" >/dev/null
+  fi
   api -X PATCH "$API/v9/projects/$name$q" \
-    -d "{\"rootDirectory\":\"$root\",\"framework\":$framework,\"nodeVersion\":\"22.x\",\"sourceFilesOutsideRootDirectory\":true}" >/dev/null
-  id=$(api "$API/v9/projects/$name$q" | jq -r .id)
-  echo "    root directory set; id $id"
-  echo "gh secret set ${secret_names[$name]} --body '$id'" >> /tmp/rules-vercel-secrets.txt
+    -d "{\"rootDirectory\":\"$root\",\"framework\":null,\"nodeVersion\":\"22.x\",\"sourceFilesOutsideRootDirectory\":true}" >/dev/null
+  ids[$name]=$(api "$API/v9/projects/$name$q" | jq -r .id)
+  echo "    id ${ids[$name]}"
 done
 
-org=$(api "$API/v2/user" | jq -r '.user.defaultTeamId // .user.id')
-echo
-echo "Add these GitHub secrets (or run the commands printed below):"
-echo "gh secret set VERCEL_ORG_ID --body '${VERCEL_TEAM_ID:-$org}'"
-cat /tmp/rules-vercel-secrets.txt && rm -f /tmp/rules-vercel-secrets.txt
-echo "gh secret set VERCEL_TOKEN        # paste a token interactively"
-echo
-echo "Next: configure each project's environment variables (infra/vercel/README.md)."
+set_related() { # file, project id
+  tmp=$(mktemp)
+  jq --arg id "$2" '.relatedProjects = [$id]' "$ROOT/$1" > "$tmp" && mv "$tmp" "$ROOT/$1"
+  echo "    $1: relatedProjects = [$2]"
+}
+echo "==> wiring related projects"
+set_related apps/web/shell/vercel.json "${ids[rules-bff]}"
+set_related apps/api/bff/vercel.json "${ids[rules-api]}"
+
+cat <<MSG
+
+Done. Next:
+  1. Commit the two vercel.json changes and push to main.
+  2. Vercel dashboard → Integrations → Neon → connect it to the rules-api project only
+     (enable "Create a database branch for each preview deployment").
+  3. Set the env vars listed in infra/vercel/README.md (rules-api only; web and bff need none).
+MSG

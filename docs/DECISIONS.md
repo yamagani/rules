@@ -392,3 +392,34 @@ secrets, and the Phase 6 PR stays open until they are configured. Verified local
 - the shell's Build Output (static files, manifest from env, edge proxy forwarding
   cookies, query strings and bodies) works;
 - `zen-engine` runs on Amazon Linux 2023 / Python 3.12 (D-007).
+
+### D-607 Three Vercel projects, Git-integrated, Neon via the Vercel integration (supersedes parts of D-601, D-603, D-604)
+Six projects plus an Actions-driven deploy were too much to maintain. The deployment is now:
+- **`rules-web`**: the shell and all three remotes in **one** Build Output. Remotes are
+  built with `base: /_mfe/<name>/` and served same-origin, so the runtime manifest uses
+  relative entries (`/_mfe/rules/remoteEntry.js`). Remotes are workspace deps of the shell,
+  so `turbo-ignore` rebuilds the web project when any remote changes. Local dev and docker
+  compose still run the remotes on their own ports.
+- **`rules-bff`** and **`rules-api`**: unchanged builds.
+- **Wiring:** Vercel *Related Projects* (`relatedProjects` in `vercel.json`, read through
+  `VERCEL_RELATED_PROJECTS`). The web edge proxy finds the BFF and the BFF finds the API,
+  using the same git branch's preview, or production for production. `BFF_URL` and
+  `RULES_SERVICE_URL` stay as fallbacks.
+- **Database:** the **Neon–Vercel integration** on `rules-api` creates a branch per preview
+  deployment and injects `DATABASE_URL` / `DATABASE_URL_UNPOOLED`. Migrations run in
+  `rules-api`'s **build** (`scripts/vercel_build.py`), before the deployment receives
+  traffic and never at cold start. Previews are seeded idempotently; production is never
+  seeded unless it is the explicit demo deployment.
+- **Deploys** come from Vercel's Git integration. `deploy.yml` now only verifies them on
+  `deployment_status`: the Playwright smoke suite on web previews, and the "production
+  rejects demo login" guard. The full, data-mutating demo path stays in CI against docker
+  compose, where the database is reset per run. The Phase 0 spike workflow was removed:
+  every `rules-api` deployment now exercises `zen-engine` on Vercel.
+- **Safety:** when `ENV` is unset it follows `VERCEL_ENV`, so a forgotten variable can no
+  longer leave a Vercel deployment in `local` mode with the dev token issuer enabled.
+
+Verified locally: the combined web Build Output, served by an emulation of its routes and
+edge proxy against a real BFF and API, passes the e2e suite (13/13; the standalone-remote
+tests don't apply). Build-time migration and seeding were checked against Postgres
+(fresh preview, re-run, production, missing URL). Not verifiable from the build session:
+the Vercel and Neon platforms themselves.
