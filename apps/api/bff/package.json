@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:vercel": "node scripts/build-vercel.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.6",
@@ -26,6 +27,7 @@
     "eslint": "^9.39.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.10"
+    "vitest": "^4.0.10",
+    "esbuild": "^0.25.0"
   }
 }

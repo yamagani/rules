@@ -174,3 +174,28 @@ describe('health', () => {
     expect(await (await app.request('/health')).json()).toEqual({ status: 'ok', service: 'bff' });
   });
 });
+
+describe('deployment protection', () => {
+  it('sends the bypass secret on every rules-service call when configured', async () => {
+    const { createApp } = await import('../src/app');
+    const { fakeRulesService } = await import('./fakeRulesService');
+    const { resetDemoModeCache } = await import('../src/session');
+    resetDemoModeCache();
+    const seen: (string | null)[] = [];
+    const rs = fakeRulesService();
+    const app = createApp({
+      rulesServiceUrl: 'http://rules.test',
+      defaultApp: 'loan-origination',
+      secureCookies: true,
+      rulesServiceBypassSecret: 'bypass-123',
+      fetch: (async (input: Request | string | URL, init?: RequestInit) => {
+        const req = input instanceof Request ? input : new Request(input, init);
+        seen.push(req.headers.get('x-vercel-protection-bypass'));
+        return rs.fetch(req);
+      }) as typeof fetch,
+    });
+    await app.request('/bff/rules/screens/list', { headers: { Cookie: 'rules_session=token-bob' } });
+    expect(seen.length).toBeGreaterThan(1);
+    expect(new Set(seen)).toEqual(new Set(['bypass-123']));
+  });
+});
