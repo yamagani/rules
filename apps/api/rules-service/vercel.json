@@ -1,9 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "npx turbo-ignore@2",
   "functions": {
     "api/index.py": {
       "maxDuration": 300,
-      "excludeFiles": "{tests/**,.venv/**,**/__pycache__/**}"
+      "excludeFiles": "{tests/**,.venv/**,**/__pycache__/**,.pytest_cache/**,.mypy_cache/**,.ruff_cache/**}"
     }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
