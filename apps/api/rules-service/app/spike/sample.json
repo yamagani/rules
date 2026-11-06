@@ -1,0 +1,25 @@
+{
+  "nodes": [
+    { "id": "in", "type": "inputNode", "name": "Request", "position": { "x": 0, "y": 0 } },
+    {
+      "id": "table",
+      "type": "decisionTableNode",
+      "name": "Eligibility",
+      "position": { "x": 240, "y": 0 },
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [{ "id": "age", "name": "Age", "field": "applicant.age" }],
+        "outputs": [{ "id": "eligible", "name": "Eligible", "field": "eligible" }],
+        "rules": [
+          { "_id": "r1", "age": ">= 18", "eligible": "true" },
+          { "_id": "r2", "age": "", "eligible": "false" }
+        ]
+      }
+    },
+    { "id": "out", "type": "outputNode", "name": "Response", "position": { "x": 480, "y": 0 } }
+  ],
+  "edges": [
+    { "id": "e1", "sourceId": "in", "targetId": "table", "type": "edge" },
+    { "id": "e2", "sourceId": "table", "targetId": "out", "type": "edge" }
+  ]
+}
