@@ -14,6 +14,8 @@ dependencies = [
   "zen-engine>=2.1.3",
   "pyjwt[crypto]>=2.10",
   "httpx>=0.28",
+  "anthropic>=0.70",
+  "openai>=2.0",
 ]
 
 [dependency-groups]
@@ -27,7 +29,7 @@ dev = [
 package = false
 
 [tool.ruff]
-line-length = 110
+line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -35,7 +37,8 @@ select = ["E", "F", "I", "B", "UP", "S", "SIM"]
 ignore = ["S101", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S105", "S106"]
+"tests/**" = ["S105", "S106", "S608"]
+"alembic/versions/**" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

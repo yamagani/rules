@@ -1,0 +1,120 @@
+{
+  "keywords": [
+    "fraud",
+    "suspicious",
+    "flag"
+  ],
+  "summary": "Flag large transactions, especially on accounts younger than 30 days",
+  "explanation": "Transactions above 10,000 are flagged. On accounts younger than 30 days they are high risk; otherwise medium. New accounts without a large amount are medium risk but not flagged. Everything else is low risk.",
+  "jdm": {
+    "nodes": [
+      {
+        "id": "request",
+        "type": "inputNode",
+        "name": "Request",
+        "position": {
+          "x": 40,
+          "y": 100
+        }
+      },
+      {
+        "id": "table",
+        "type": "decisionTableNode",
+        "name": "Fraud flag",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "content": {
+          "hitPolicy": "first",
+          "inputs": [
+            {
+              "id": "amount",
+              "name": "Amount",
+              "field": "transaction.amount"
+            },
+            {
+              "id": "age",
+              "name": "Account age (days)",
+              "field": "customer.accountAgeDays"
+            }
+          ],
+          "outputs": [
+            {
+              "id": "flag",
+              "name": "Flag",
+              "field": "flag"
+            },
+            {
+              "id": "risk",
+              "name": "Risk",
+              "field": "risk"
+            },
+            {
+              "id": "reason",
+              "name": "Reason",
+              "field": "reason"
+            }
+          ],
+          "rules": [
+            {
+              "_id": "rule-1",
+              "amount": "> 10000",
+              "age": "< 30",
+              "flag": "true",
+              "risk": "'high'",
+              "reason": "'Large amount on a new account'"
+            },
+            {
+              "_id": "rule-2",
+              "amount": "> 10000",
+              "age": "",
+              "flag": "true",
+              "risk": "'medium'",
+              "reason": "'Large amount'"
+            },
+            {
+              "_id": "rule-3",
+              "amount": "",
+              "age": "< 30",
+              "flag": "false",
+              "risk": "'medium'",
+              "reason": "'New account'"
+            },
+            {
+              "_id": "rule-4",
+              "amount": "",
+              "age": "",
+              "flag": "false",
+              "risk": "'low'",
+              "reason": "'No risk signals'"
+            }
+          ]
+        }
+      },
+      {
+        "id": "response",
+        "type": "outputNode",
+        "name": "Response",
+        "position": {
+          "x": 700,
+          "y": 100
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-request-table",
+        "sourceId": "request",
+        "targetId": "table",
+        "type": "edge"
+      },
+      {
+        "id": "e-table-response",
+        "sourceId": "table",
+        "targetId": "response",
+        "type": "edge"
+      }
+    ]
+  }
+}
