@@ -199,3 +199,15 @@ describe('deployment protection', () => {
     expect(new Set(seen)).toEqual(new Set(['bypass-123']));
   });
 });
+
+describe('rules-service location on Vercel', () => {
+  it('uses the related API project for the same branch on previews, then RULES_SERVICE_URL', async () => {
+    const { rulesServiceUrlFromEnv } = await import('../src/config');
+    const related = JSON.stringify([
+      { project: { id: 'prj_1', name: 'rules-api' }, preview: { branch: 'rules-api-git-feat-x.vercel.app' }, production: { alias: 'api.example.com' } },
+    ]);
+    expect(rulesServiceUrlFromEnv({ VERCEL_ENV: 'preview', VERCEL_RELATED_PROJECTS: related })).toBe('https://rules-api-git-feat-x.vercel.app');
+    expect(rulesServiceUrlFromEnv({ VERCEL_ENV: 'production', VERCEL_RELATED_PROJECTS: related })).toBe('https://api.example.com');
+    expect(rulesServiceUrlFromEnv({ RULES_SERVICE_URL: 'http://localhost:9000/' })).toBe('http://localhost:9000');
+  });
+});
