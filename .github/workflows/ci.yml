@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  js:
+    name: lint · typecheck · unit tests (JS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: '3.12' }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm --filter '!@rules/rules-service' test
+      - run: pnpm build
+
+  python:
+    name: rules-service (ruff · mypy · pytest)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: rules, POSTGRES_PASSWORD: rules, POSTGRES_DB: rules }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U rules" --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgresql://rules:rules@localhost:5432/rules
+    defaults:
+      run:
+        working-directory: apps/api/rules-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: '3.12' }
+      - run: uv sync --frozen
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run mypy app
+      - run: uv run pytest -q
+      - name: requirements.txt matches uv.lock (used by the Vercel Python runtime)
+        run: |
+          uv export --no-dev --no-hashes --format requirements-txt -q -o /tmp/req.txt
+          diff <(grep -v '^#' requirements.txt) <(grep -v '^#' /tmp/req.txt)
