@@ -219,3 +219,46 @@ API responses, logs, every database table, audit and usage output.
 ### D-126 Out of scope: file extraction
 `GenerateRequest` has a `TODO(file-extraction)`: PDF/DOCX uploads will be converted to text
 and fed into `context_text`.
+
+## Phase 2 — shared packages
+
+### D-201 json-render specifics
+- Specs use json-render's flat format `{ root, elements, state }`.
+- The prompt's "Button with `action` binding" is json-render's element-level
+  `on: { press: { action, params } }`.
+- Catalog actions: `navigate`, `submit`, `refresh`, `openModal`, `closeModal`, `toast`.
+- Two additive components: `Modal` (opened by `openModal` via state `/ui/modal`) and `Text`.
+- `DataTable` rows carry their own action bindings, so the BFF decides per row which actions
+  are offered (e.g. no "Disable" on an aliased version).
+
+### D-202 Validated specs carry normalized props
+json-render hands components the raw props and does not apply Zod defaults.
+`validateScreenSpec()` (used by the BFF before responding and by the runtime before
+rendering) parses every element's props with its component schema and returns a spec whose
+props are the parsed output, with defaults applied. It also checks dangling children,
+the root, and that every `on` binding names a known action.
+
+### D-203 Domain components fetch through BFF actions
+`JdmEditor`, `VersionDiff`, `TestPanel`, `AiGeneratePanel` and `ProviderSettings` get
+references (app, decision, version) in their props. They load and save through
+`HostServices.callAction` (`loadVersion`, `saveVersion`, `diff`, `evaluate`, `generate`, …),
+which `@rules/sdui-runtime` implements as `POST /bff/<mfe>/actions/<action>`. Graph JSON is
+never embedded in a spec. The GoRules editor bundle (antd, Monaco, React Flow) is
+lazy-loaded the first time an editor renders.
+
+### D-204 Payload references in `submit`
+`submit` params can reference form state anywhere in the payload: `{ "$state": "/path" }`,
+`{ "$json": "/path" }` (parses a `JsonField` string) and `{ "$number": "/path" }`. The
+runtime resolves them just before POSTing, so the BFF always receives typed JSON.
+
+### D-205 Workspace packages are consumed as TypeScript source
+`packages/*` export `src/*.ts(x)` directly; Vite, Vitest, `tsx` and `tsc` all consume them
+without a build step. The generic packages (`ui-registry` generic components, `sdui-runtime`,
+`auth`) import nothing from the rules domain. The domain components live in
+`packages/ui-registry/src/domain/` and are joined to the catalog in exactly one place
+(`catalog.ts` / `react.tsx`), so they can be dropped to extract a generic package.
+
+### D-206 Generated API client is committed
+`packages/api-client/openapi.json` and `src/schema.d.ts` are generated
+(`pnpm --filter @rules/api-client generate`) and committed, so JS jobs need no Python. CI
+fails if they drift from the service's OpenAPI document.
