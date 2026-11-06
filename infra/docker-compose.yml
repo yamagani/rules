@@ -31,6 +31,7 @@ services:
       DATABASE_URL: postgresql://rules:rules@postgres:5432/rules
       DATABASE_URL_UNPOOLED: postgresql://rules:rules@postgres:5432/rules
       AI_DEFAULT_PROVIDER: mock
+      AI_DEFAULT_MODEL: ${AI_DEFAULT_MODEL:-claude-sonnet-5-5}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports: ["8000:8000"]
     depends_on:
