@@ -1,9 +1,10 @@
-# Vercel deploys this monorepo through its GitHub integration (3 projects: rules-web,
-# rules-bff, rules-api). Each project's build runs only when its code or its workspace
+# Vercel deploys this monorepo through its GitHub integration (3 projects: rules (web),
+# rules-bff, rules-api); Vercel names GitHub deployment environments
+# "<Preview|Production> – <project>". Each project's build runs only when its code or its workspace
 # dependencies changed (turbo-ignore). rules-api migrates its Neon database during its own
 # build, so this workflow only *verifies* deployments that Vercel reports to GitHub:
 #
-#   preview of rules-web ready    → Playwright smoke suite against the preview URL
+#   preview of the web project ready → Playwright smoke suite against the preview URL
 #   production of rules-api ready → production rejects demo login and requires auth
 name: Verify deployment
 
@@ -13,8 +14,8 @@ jobs:
   preview-e2e:
     if: >-
       github.event.deployment_status.state == 'success' &&
-      github.event.deployment.environment != 'Production' &&
-      contains(github.event.deployment_status.target_url, 'rules-web')
+      startsWith(github.event.deployment.environment, 'Preview') &&
+      endsWith(github.event.deployment.environment, vars.VERCEL_WEB_PROJECT || ' rules')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -42,8 +43,8 @@ jobs:
   production-guard:
     if: >-
       github.event.deployment_status.state == 'success' &&
-      github.event.deployment.environment == 'Production' &&
-      contains(github.event.deployment_status.target_url, 'rules-api') &&
+      startsWith(github.event.deployment.environment, 'Production') &&
+      endsWith(github.event.deployment.environment, 'rules-api') &&
       vars.PRODUCTION_IS_DEMO != 'true'
     runs-on: ubuntu-latest
     steps:

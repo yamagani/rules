@@ -5,7 +5,7 @@ through the **Neon–Vercel integration**.
 
 | Vercel project | Root directory | What it serves |
 |---|---|---|
-| `rules-web` | `apps/web/shell` | The shell **and** the three micro-frontends (served same-origin under `/_mfe/<name>/`), plus an edge function proxying `/bff/*` to the BFF |
+| `rules-web` (any name, e.g. `rules`) | `apps/web/shell` | The shell **and** the three micro-frontends (served same-origin under `/_mfe/<name>/`), plus an edge function proxying `/bff/*` to the BFF |
 | `rules-bff` | `apps/api/bff` | Hono BFF as one Node.js function |
 | `rules-api` | `apps/api/rules-service` | FastAPI + ZEN engine (Python function). Runs database migrations during its build |
 
