@@ -4,5 +4,7 @@
   "installCommand": "cd ../../.. && pnpm install --frozen-lockfile",
   "buildCommand": "pnpm run build:vercel",
   "ignoreCommand": "npx turbo-ignore@2",
-  "relatedProjects": []
+  "relatedProjects": [
+    "prj_FXyIimC6wevCO9Hy6ZjgbS4A8AP4"
+  ]
 }
