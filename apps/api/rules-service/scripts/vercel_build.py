@@ -24,8 +24,16 @@ def direct_url() -> str | None:
     return None
 
 
+def write_output_dir() -> None:
+    """Vercel requires a non-empty output directory even for a functions-only project.
+    robots.txt does not collide with any API route (everything else is rewritten to the app)."""
+    public = ROOT / "public"
+    public.mkdir(exist_ok=True)
+    (public / "robots.txt").write_text("User-agent: *\nDisallow: /\n")
+
+
 def main() -> int:
-    (ROOT / "public").mkdir(exist_ok=True)  # Vercel expects an output directory
+    write_output_dir()
     vercel_env = os.environ.get("VERCEL_ENV", "development")
     url = direct_url()
     if not url:
